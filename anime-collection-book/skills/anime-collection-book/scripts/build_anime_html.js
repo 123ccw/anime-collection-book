@@ -39,6 +39,7 @@ const ACCENTS = {
   '葬送的芙莉莲': '#6d28d9',
   '孤独摇滚！': '#e0407e',
   '夏日重现': '#0e7490',
+  '一拳超人': '#eab308',
 };
 const DEFAULT_ACCENT = '#4f46e5';
 

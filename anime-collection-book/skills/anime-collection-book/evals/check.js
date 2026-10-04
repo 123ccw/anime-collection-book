@@ -39,6 +39,21 @@ catch (e) { t('HTML 已生成', false, e.message); }
 t('HTML 无乱码替换符（U+FFFD）', html.indexOf('\uFFFD') < 0, '存在方块字，检查字体子集是否漏跑');
 t('HTML 含章节结构', html.includes('class="show"'));
 
+// ③.5 封面渲染（声明了封面且文件存在的部，HTML 里必须有对应 <img>——防"漏写 cover 字段/路径错/复制失败"）
+if (base) {
+  let covDeclared = 0;
+  const missCov = [];
+  for (const rec of Object.values(base)) {
+    let r = null;
+    try { r = JSON.parse(fs.readFileSync(P('anime_research', rec.folder + '.json'), 'utf8')); } catch (e) { continue; }
+    if (!r.cover) { missCov.push(rec.folder + '(未声明)'); continue; }
+    if (!fs.existsSync(P('anime_research', r.cover))) { missCov.push(rec.folder + '(文件不存在)'); continue; }
+    covDeclared++;
+  }
+  const imgCount = (html.match(/<img /g) || []).length;
+  t('封面图已渲染（img 数 ≥ 有效声明数）', imgCount >= covDeclared, 'img=' + imgCount + ' 有效声明=' + covDeclared + (missCov.length ? '；异常：' + missCov.join('、') : ''));
+}
+
 // ④ PDF
 const pdfPath = P('anime_build', '番剧收藏简介.pdf');
 let pdfSize = 0;
