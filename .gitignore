@@ -1,0 +1,12 @@
+# 依赖
+node_modules/
+
+# 使用 skill 时项目根产生的目录（仓库本身不含这些；锚定根目录，勿误伤 examples/）
+/anime_build/
+/anime_research/
+/anime_base.json
+/names.txt
+/fonts/*.ttf
+/fonts/*.woff2
+/_allpages/
+/_sheets/

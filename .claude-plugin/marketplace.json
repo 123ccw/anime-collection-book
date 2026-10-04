@@ -1,0 +1,16 @@
+{
+  "name": "anime-collection-book",
+  "owner": { "name": "anime-collection-book" },
+  "plugins": [
+    {
+      "name": "anime-collection-book",
+      "source": "./anime-collection-book",
+      "version": "1.0.0",
+      "description": "Turn a list of anime names (or a local video library) into a magazine-style PDF collection book: official covers, synopses, staff & cast, watch order, per-season spoiler guides, bookmarks and page footers",
+      "displayName": "Anime Collection Book",
+      "displayName_i18n": { "zh-CN": "番剧收藏册" },
+      "description_i18n": { "zh-CN": "把一份番剧名字清单（或本机视频收藏）做成杂志风 PDF 收藏册：官方海报/简介/制作声优/补番顺序/逐季剧透，带书签页脚" },
+      "category": "productivity"
+    }
+  ]
+}

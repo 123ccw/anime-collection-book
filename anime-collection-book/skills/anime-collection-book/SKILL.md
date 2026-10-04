@@ -1,0 +1,154 @@
+---
+name: anime-collection-book
+description: Use when 用户想把番剧/动画做成"收藏册/图鉴/纪念册/简介 PDF"——可只给片名清单（清单也可来自对话上文或文件，无需本地视频文件），也可基于本机视频收藏库；TV/剧场版/OVA 及 Galgame 视觉小说的同类整理均适用。产出杂志风 PDF：官方海报、无剧透简介（剧透独立成逐季表）、制作声优、主题歌与观看平台、补番顺序、可点击目录与书签页脚。不用于：非影音内容的整理（如游戏攻略）、追番进度管理（这不是 tracker）、视频文件整理/重命名/媒体库刮削（Jellyfin/Emby/Plex 场景）、对已有 PDF 的格式转换。
+---
+
+# 番剧收藏册 PDF
+
+## 高频坑位（开工前先读，都是实测踩出来的）
+
+- **国内网络直连 zh.wikipedia.org 拿不到数据**（curl 返回空）——一切经 tvly 抓取；tvly 传中文查询必须走 stdin（`printf '查询词' | tvly search - --json`）
+- **维基条目的曲名/人名常挂在标题行的下一行**（`片尾曲` ⏎ `: "曲名"`）——过滤时连取后 1-2 行，否则数据截断
+- **`unit_synopses[].name` 必须与 `units[].name` 逐字一致**——不一致该单元渲染为空白（构建时会打印 ⚠ 警告，看到就回查名字）
+- **封面要选角色正脸海报**——AniList 本篇条目封面常是舞台远景/背影，翻 `relations` 里的 MOVIE 条目找干净竖图
+- **每改文案必须重跑字体子集**——漏跑会出现方块字（`npm run pipeline` 已内置这一步）
+- **调研子代理并发 ≤2**（超发被杀）；代理挂掉先查它的产出文件落盘没有（常见"汇报时挂、稿子已写完"）
+- **airdate 缺失会让总览时间轴静默丢列**——用 units 最早日期兜底（脚本已内置；自备数据时留意）
+
+> 完整 13 条坑位与解法在 `references/pipeline.md`，遇到具体报错时读。
+
+## 两种模式
+
+- **模式 A · 报菜名**（零本地依赖，推荐）：用户只给番剧名字清单 `names.txt`，全部内容在线调研。
+- **模式 B · 整理本机收藏**（进阶·可选）：用户有结构化视频库（每部一个文件夹，每集带封面/元数据），册子可利用本地素材。**前置条件：视频库需符合上述结构；扫描脚本未随包提供**（各人目录结构不同）——让 agent 按下方 `anime_base.json` 结构说明写一个即可。
+
+`anime_base.json` 最小结构（模式 B 自备扫描脚本的输出目标；模式 A 由 names_to_base.js 自动生成，无需关心）：
+
+```json
+{
+  "<作品名>": {
+    "title": "作品名", "folder": "作品名",
+    "airdate": 1700000000000,
+    "genres": ["类型标签"],
+    "units": [{ "name": "本篇", "eps": 12, "airdate": 1700000000000 }],
+    "cover": "cover.jpeg"
+  }
+}
+```
+> `cover` 为相对作品文件夹的封面路径（配合 build 脚本顶部的 `VROOT` 指向视频库根使用）；`airdate` 为毫秒时间戳。
+
+## 项目结构（在用户选定的项目根目录下）
+
+```
+<项目根>/
+├─ names.txt                 模式 A：一行一部番剧名
+├─ anime_base.json           构建输入（模式 B 扫描生成 / 模式 A 由 names_to_base.js 合成）
+├─ anime_research/
+│  ├─ <作品名>.json          每部一份调研成果（字段见下）
+│  └─ covers/<作品名>.jpg    官方海报（AniList 等，下载后必须目视核对）
+├─ fonts/                    LXGWWenKai-Regular.ttf / -Medium.ttf（OFL，自行下载）
+└─ anime_build/              中间产物（HTML/PDF/_pagemap.json，脚本自动建）
+```
+
+## 调研 JSON 字段（anime_research/<作品名>.json）
+
+```json
+{
+  "folder": "与收藏文件夹名一致",
+  "title_zh": "中文名", "title_jp": "日文原名",
+  "synopsis": "无剧透简介 300-500 字",
+  "source": "原作情报（作者/连载平台/卷数/完结与否）",
+  "update": "动画更新动态（标注'截至 YYYY-MM'）",
+  "genres": ["类型标签 4-6 个"],
+  "production": "动画制作：X；导演：Y；系列构成：Z；主要声优：角色·CV、角色·CV（结构化渲染自动解析）",
+  "watch_order": "补番顺序（多季/剧场版/OVA 的先后与必看可跳过）",
+  "music": "OP「曲名」（演唱）／ED「曲名」（演唱）（第1期）；OP「曲名」／ED「曲名」（第2期）",
+  "platforms": "中国大陆：B站、爱奇艺；国际：Crunchyroll（只在有据可查时写）",
+  "status": "第 3 期放送中；或 已完结 / 第 2 期制作决定（档期待定） / 剧场版 2026-10-16 上映在即",
+  "units": [{"name": "第一季", "eps": 12, "airdate": 1700000000000}],
+  "unit_synopses": [{"name": "第一季", "text": "100-250 字剧透简介：主线→转折→结局落点"}],
+  "rating": [{"site": "bangumi", "score": 7.9}],
+  "cover": "covers/<作品名>.jpg"
+}
+```
+- `units`：**模式 A 必填**（逐季/剧场版查证集数与首播，airdate 为毫秒时间戳）；模式 B 由扫描生成，research 里不用写
+- `rating`：可选，有就渲染成评分行（Bangumi/TMDB 等）
+- `unit_synopses[].name` 必须与 `units[].name` 逐字一致
+- `music` / `platforms` / `status`：可选，缺失自动隐藏对应板块；**status 决定标题区徽章颜色**（含"已完结"=灰、"放送中"=绿、其它=琥珀）
+- `production` 请尽量按"键：值；键：值……主要声优：角色·CV、…"格式写——渲染端会自动拆成结构化表格（格式不符则降级为整段文本，不会出错）
+- 完整填写示例（含各字段的真实文风）见 `assets/research.template.json`——**写第一部作品的 JSON 前先读它**
+
+## 执行流程
+
+进度总览（每步完成后勾选，勿跳步）：
+
+- [ ] ① 调研：`names.txt` → 每部一份 research JSON（含官方海报；并发 ≤2，一次 3-4 部省 token）
+- [ ] ② 合成：`npm run base`（模式 A）
+- [ ] ③ 构建：`npm run pipeline`（字体子集 + 两轮构建渲染 + 页码核对）
+- [ ] ④ 验收：`npm run check`（自动断言）→ 全页目检（见下）→ 封面逐张目视核对
+- [ ] ⑤ 交付：成品 PDF 覆盖到交付路径（只保留唯一一份）；**HTML 源一并保留**（`anime_build/番剧收藏简介.html`，用户可自行微调重渲）
+
+④ 全页目检的两种做法（按环境能力选择）：
+- **环境装有官方 pdf 插件时（优先）**：把 `_allpages/` 或 `_sheets/` 的页面 PNG 交给 `pdf:visual-judge` 子代理做逐页视觉验收（返回每页 pass/fail 与问题清单），比自检更结构化
+- **无该插件时（降级）**：agent 亲自逐页读联络表 PNG 核对（空白页/溢出/封面张冠李戴/乱码）
+
+### 模式 A
+1. 读 `names.txt`，派调研 agent（**并发 ≤2**）逐部产出 research JSON（文件名 = 作品名.json）+ 下载官方海报
+2. `npm run base`（或 `node names_to_base.js`）合成 anime_base.json（脚本自动兜底：文件名与作品名对不上时按 folder/title 匹配）
+3. 走下方「构建」
+
+### 模式 B
+1. 扫描视频库生成 anime_base.json（每部：folder/title/units[{name,eps,airdate}]/cover 指向 `_其他文件` 内封面）
+2. 调研 agent 补 research JSON（production/watch_order/unit_synopses/cover 覆盖）
+3. 走「构建」
+
+### 构建（在 skill 的 `scripts/` 目录执行；首次先 `npm i`，并把 `config.json` 的 `root` 改为你的项目根）
+
+**一键（推荐）**：
+
+```bash
+npm run pipeline   # 字体子集 → 两轮「构建→渲染→页码反查」，一条命令跑完
+npm run check      # 自动断言（产物完整性 / 页码全命中 / 无乱码字符）
+npm run sheet      # 生成全页联络表（目检用）
+```
+
+**手动分步**（调试或理解原理时用，脚本都在同一目录）：
+
+```bash
+node collect_fonts.js      # ① 字体子集（大量新文案后必须重跑，防缺字；需 python -m fontTools.subset）
+node build_anime_html.js   # ② 构建 HTML（第一轮；目录页码为占位符）
+node render_pw.js          # ③ 渲染 PDF（写入书签）
+node anime_pagemap.js      # ④ 从书签反查每部起始页 → _pagemap.json
+# 回到 ② 再跑一轮（把真实页码印进目录）→ ③ → ④；两轮 pagemap 输出一致即稳定
+```
+
+## 数据核实方法（实测最顺的链路）
+
+- **搜索优先走 tvly（Tavily CLI）**：`printf '查询词' | tvly search - --json`——**中文必须走 stdin**，直接当参数传在 Windows 会编码损坏
+- **一次拿全 OP/ED + 平台的姿势**：`printf 'site:zh.wikipedia.org <作品名>' | tvly search - --max-results 1 --include-raw-content --json`——维基动画条目一页同含「主題歌」与「网络播放」两节，本地过滤关键词行即可。两个坑：① 本机直连 zh.wikipedia.org 常不通（curl 返回空），**必须走 tvly 服务端抓取**；② 曲名常挂在标题行的下一行（`片尾曲` ⏎ `: "曲名"`），过滤正则命中后要把「该行 + 后 1-2 行」一起取
+- **AniList GraphQL**（封面/季集数）：curl 直接调，但搜索必须用罗马字/英文名并核对返回 title；**关联条目（尤其 relations 里的 MOVIE）的封面常比本篇条目更适合做册子封面**（本篇封面常是舞台远景/截图）
+- 本机连不上的源（维基、bgm.tv 部分接口）：一律经 tvly 抓，别用 curl 硬顶
+
+## 质检铁律（不可省略）
+
+1. **封面必须亲眼看**：下载的每张海报用多模态读图确认"确实是这部、竖版优先、不是截图充数"。名字搜索必串味（Hades→Hades II、按 id 猜更糟），必须核对返回的 title 字段
+2. **封面选取标准（用户实测教训）**：要选**角色正脸全员可见**的主视觉/海报——避免演出背影、侧脸遮挡、带"2期制作决定!!"之类宣传文字的图。本篇条目封面常是舞台远景，**优先翻查关联条目**：剧场版总集篇海报往往才是干净的人像竖图（AniList 的 `relations` 字段里 MOVIE 条目的 coverImage 就是候选池，下载后逐个目检挑最好的）
+3. **主题色从封面取**：ACCENTS 表里的色值建议从该作官方主视觉取色（如波奇粉 #e0407e 配粉调海报）；默认色表给的红色遇到粉色系作品会「色调打架」
+4. **全页联络表目检**：整本 PDF 渲小图拼 4×5 网格逐张看（scripts/contact_sheet.js），抓空白页/溢出/乱码
+5. **不编造**：声优、集数、成就、日期查不到就写"未核实/以官网为准"
+6. 数值断言能复算就复算（agent 报的统计数字要抽验）
+7. **发册前做时效复核**：用 tvly 把每部的最新动态（续作官宣/定档/上映日/放送进度）过一遍——"截至 YYYY-MM"写旧的册子一眼就显得没维护；在播作品的 status 徽章尤其容易过期
+8. 改版/删内容前备份成品
+
+## 环境依赖
+
+- **操作系统**：脚本按 **Windows** 优先编写（cmd/字符编码处理）；macOS/Linux 下核心流程可用（python 已自动探测 python3），但类模式 B 的 Windows 专属步骤（文件图标/桌面集成）需自行适配
+- Node.js ≥20；npm 包：playwright（+`npx playwright install chromium`，失败回退 `channel:'msedge'`）、pdfjs-dist（legacy）、@napi-rs/canvas —— 在 `scripts/` 目录执行 `npm i`
+- Python 3 + `pip install fonttools brotli`（字体子集；脚本自动探测 python3/python）
+- 字体：霞鹜文楷 LXGW WenKai（OFL，GitHub Releases 下 Regular/Medium TTF 放 `<项目根>/fonts/`）
+- **agent 能力要求**：文件读写 + Shell 执行 + 联网搜索 + **多模态读图**（封面目检必需）；任何满足这四点的 agent（Claude Code / ZCode / Cursor agent 等）均可运行，无厂商绑定
+- 模式 B 另需 ffmpeg（视频抽帧补封面）；Windows 下 ffmpeg 中文路径要用 ASCII 临时目录中转
+
+## 详细版
+
+完整踩坑清单（13 条）、Tavily/AniList/VNDB/Steam 数据源用法、pdf-lib 盖章细节、给调研 agent 的 prompt 模板，见 `references/pipeline.md`。
