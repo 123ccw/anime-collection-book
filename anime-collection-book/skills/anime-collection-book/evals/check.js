@@ -54,6 +54,10 @@ if (base) {
   t('封面图已渲染（img 数 ≥ 有效声明数）', imgCount >= covDeclared, 'img=' + imgCount + ' 有效声明=' + covDeclared + (missCov.length ? '；异常：' + missCov.join('、') : ''));
 }
 
+// ③.6 统计数字：不应出现首尾相同的年份区间（如 "2015-2015"）
+const dupSpan = html.match(/\b(\d{4})-\1\b/);
+t('无首尾相同的年份区间（如 2015-2015）', !dupSpan, dupSpan ? '命中：' + dupSpan[0] : '');
+
 // ④ PDF
 const pdfPath = P('anime_build', '番剧收藏简介.pdf');
 let pdfSize = 0;

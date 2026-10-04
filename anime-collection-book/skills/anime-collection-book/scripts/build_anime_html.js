@@ -294,8 +294,16 @@ shows.forEach((rec, i) => {
 const grand = shows.reduce((s, r) => s + totalEps(r), 0);
 const grandUnits = shows.reduce((s, r) => s + unitCount(r), 0);
 const yearSpan = (() => {
-  const ys = shows.map(s => s.airdate || (s.units || []).map(u => u.airdate).filter(Boolean).sort()[0]).filter(Boolean).map(t => new Date(t).getFullYear()).sort((a, b) => a - b);
-  return ys.length ? `${ys[0]}-${ys[ys.length - 1]}` : '';
+  // 收录年份跨度 = 全册所有单元（含后续季/OVA）最早与最晚的年份；仅一年时显示单值，避免 "2015-2015"
+  const ys = [];
+  for (const s of shows) {
+    for (const u of (s.units || [])) if (u.airdate) ys.push(new Date(u.airdate).getFullYear());
+    const y0 = s.airdate || ((s.units || []).map(u => u.airdate).filter(Boolean))[0];
+    if (y0) ys.push(new Date(y0).getFullYear());
+  }
+  ys.sort((a, b) => a - b);
+  if (!ys.length) return '';
+  return ys[0] === ys[ys.length - 1] ? String(ys[0]) : `${ys[0]}-${ys[ys.length - 1]}`;
 })();
 // 时间轴：按首播年份分列（竖排名）
 const tlHtml = (() => {
@@ -325,7 +333,7 @@ const html = `<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8">
     <div class="st"><b>${shows.length}</b><span>部 作品</span></div>
     <div class="st"><b>${grandUnits}</b><span>个单元</span></div>
     <div class="st"><b>${grand}</b><span>集 收藏</span></div>
-    <div class="st"><b>${yearSpan}</b><span>首播年份跨度</span></div>
+    <div class="st"><b>${yearSpan}</b><span>收录年份跨度</span></div>
   </div>
   <div class="tl">${tlHtml}</div>
   <div class="toc">
