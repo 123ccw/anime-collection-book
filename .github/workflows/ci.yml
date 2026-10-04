@@ -1,0 +1,25 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  syntax:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: 全部脚本语法检查
+        run: |
+          for f in anime-collection-book/skills/anime-collection-book/scripts/*.js \
+                   anime-collection-book/skills/anime-collection-book/evals/*.js; do
+            echo "check $f"
+            node --check "$f"
+          done
+      - name: 校验插件清单为合法 JSON
+        run: |
+          node -e "for (const p of ['.claude-plugin/marketplace.json','anime-collection-book/.claude-plugin/plugin.json','anime-collection-book/.zcode-plugin/plugin.json','anime-collection-book/skills/anime-collection-book/scripts/package.json']) { JSON.parse(require('fs').readFileSync(p,'utf8')); console.log('OK', p); }"
