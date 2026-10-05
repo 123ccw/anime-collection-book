@@ -332,6 +332,7 @@ const CSS = `
   .bk-title { font-family: "LXGW WenKai"; font-weight: 700; font-size: 15pt; color: #141419; margin-top: 10mm; }
   .bk-line { font-size: 9pt; color: #6b6b76; margin-top: 2mm; letter-spacing: .08em; }
   .bk-cred { font-size: 7.5pt; color: #8b8b96; letter-spacing: .14em; margin-top: 18mm; }
+  .bk-src { font-size: 7pt; color: #a0a0aa; margin-top: 3mm; line-height: 1.7; max-width: 120mm; }
 `;
 
 // ---- 组装 ----
@@ -413,6 +414,10 @@ for (const [i, rec] of shows.entries()) {
   const frCardHtml = fr.length
     ? `<div class="card"><p><b>${L.frCard} ${fr.length - frMiss.length}/${fr.length}</b>${frMiss.length ? ` ——${L.frWait}：${esc(frMissTxt)}` : ` ——${L.frDone}`}</p></div>`
     : '';
+  // 补记卡（可选）：research.extra = {title, text}——装彩蛋/考证/补注一类补充内容
+  const extraHtml = (r.extra && r.extra.text)
+    ? `<h2>${esc(r.extra.title || '补记')}</h2><div class="card"><p>${esc(r.extra.text)}</p></div>`
+    : '';
   showMeta.push({ title, ac, total: totalEps(rec), cover, jp: titleJp, genres: genres.slice(0, 3), quote: q || null, frTotal: fr.length, frMiss: frMiss.length });
 
   chapters.push(`
@@ -437,11 +442,12 @@ for (const [i, rec] of shows.entries()) {
     ${src ? `<h2>${L.hSource}</h2><div class="card"><p>${esc(src)}</p></div>` : ''}
     ${r.watch_order ? `<h2>${L.hOrder}</h2><div class="card"><p>${esc(r.watch_order)}</p></div>` : ''}
     ${upd ? `<h2>${L.hUpdate}</h2><div class="card"><p>${esc(upd)}</p></div>` : ''}
-    <h2>${L.hDetail}</h2>
+    ${extraHtml}
+    ${unitRows ? `<h2>${L.hDetail}</h2>
     <table><thead><tr>${unitSops.length
       ? `<th style="width:${nameW}mm">${L.colUnit}</th><th style="width:14mm">${L.colEps}</th><th style="width:26mm">${L.colAir}</th><th>${L.colSop}</th>`
       : `<th style="width:${Math.min(64, nameW + 14)}mm">${L.colUnit}</th><th style="width:34mm">${L.colEps}</th><th>${L.colAir}</th>`}</tr></thead>
-    <tbody>${unitRows}</tbody></table>
+    <tbody>${unitRows}</tbody></table>` : ''}
     ${frCardHtml}
   </div>`);
 
@@ -518,6 +524,7 @@ const backPage = `<div class="page back-pg" style="${varsFor(DEFAULT_ACCENT)}">
   <div class="bk-title">${esc(BOOK_TITLE)}</div>
   <div class="bk-line">${yearSpan || NOW} · ${shows.length} ${L.person} · ${grand} ${L.chapName}</div>
   <div class="bk-cred">${L.m2} · ${NOW} · Generated with anime-collection-book</div>
+  ${CFG.credits ? `<div class="bk-src">${esc(CFG.credits)}</div>` : ''}
 </div>`;
 // 时间轴：按首播年份分列（竖排名）；年份多时逐级收紧防挤爆
 const tl = (() => {
