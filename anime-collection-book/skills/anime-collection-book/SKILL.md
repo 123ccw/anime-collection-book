@@ -4,7 +4,7 @@ license: MIT
 compatibility: Requires Node.js >=20 with npm, Python 3 + fonttools/brotli (font subsetting), Playwright Chromium (or system Edge), and internet access for online research.
 metadata:
   author: 123ccw
-  version: "1.0.3"
+  version: "1.1.0"
 description: Use when 用户想把番剧/动画做成"收藏册/图鉴/纪念册/简介 PDF"——可只给片名清单（清单也可来自对话上文或文件，无需本地视频文件），也可基于本机视频收藏库；TV/剧场版/OVA 及 Galgame 视觉小说的同类整理均适用。产出杂志风 PDF：官方海报、无剧透简介（剧透独立成逐季表）、制作声优、主题歌与观看平台、补番顺序、可点击目录与书签页脚。不用于：非影音内容的整理（如游戏攻略）、追番进度管理（这不是 tracker）、视频文件整理/重命名/媒体库刮削（Jellyfin/Emby/Plex 场景）、对已有 PDF 的格式转换。
 ---
 
@@ -112,6 +112,8 @@ description: Use when 用户想把番剧/动画做成"收藏册/图鉴/纪念册
 3. 走「构建」
 
 ### 构建（在 skill 的 `scripts/` 目录执行；首次先 `npm i`，并把 `config.json` 的 `root` 改为你的项目根）
+
+> `config.json` 的可选字段 `title`：自定义书名（默认《番剧收藏简介》），影响封面/总览/封底显示，输出文件名不变；改完照常 `npm run pipeline`（字体子集会自动收录新书名字符）
 
 **一键（推荐）**：
 

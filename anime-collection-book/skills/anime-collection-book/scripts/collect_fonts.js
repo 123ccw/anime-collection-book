@@ -53,6 +53,8 @@ add('剧情简介剧透注意制作与声优原作情报补番顺序动画更新
 add('未核实以游戏内为准以官网为准TV OVA 剧场版特别篇本篇第一季第二季第三季第四季完结篇放送中制作决定上映在即');
 add('0123456789·—（）()「」『』【】～.:：,、.!！?？~-～ ');
 add('abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789');
+add(CFG.title || '');   // 自定义书名的字必须进子集，否则封面/总览/封底出方块字
+add('完');              // 封底收尾字
 // 兜底防缺字：把 build 脚本全文（含全部界面文案与注释）并入字符集——UI 文字改版也不怕漏
 try { add(fs.readFileSync(path.join(__dirname, 'build_anime_html.js'), 'utf8')); }
 catch (e) { console.warn('未能读取 build_anime_html.js（跳过兜底）:', e.message); }

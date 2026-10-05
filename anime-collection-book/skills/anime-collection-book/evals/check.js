@@ -85,5 +85,8 @@ try {
     rows.length === 0 ? '未从 HTML 解析到目录行（HTML 结构变了？）' : bad.slice(0, 3).join('；'));
 } catch (e) { /* pagemap 缺失时 ⑤ 已报错，不重复计失败 */ }
 
+// ⑦ 封面封底页已生成
+t('封面封底页已生成', html.includes('cover-pg') && html.includes('back-pg'));
+
 console.log('\n结果：' + pass + ' 通过，' + fail + ' 失败' + (fail ? '（回到 SKILL.md 的坑位清单排查）' : ''));
 process.exit(fail ? 1 : 0);

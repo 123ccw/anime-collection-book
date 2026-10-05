@@ -12,6 +12,7 @@ const CFG = (() => {
 })();
 const ROOT = CFG.root || 'C:\\anime-book';   // 项目根
 const VROOT = CFG.vroot || '';               // 模式 B（本机视频库）才填；模式 A 留空
+const BOOK_TITLE = String(CFG.title || '番剧收藏简介');   // 书名（封面/总览/封底共用；输出文件名固定不变）
 const BASE_FILE = path.join(ROOT, 'anime_base.json');
 if (!fs.existsSync(BASE_FILE)) {
   console.error('未找到 ' + BASE_FILE + ' ——模式 A 请先跑 npm run base；或检查 config.json 的 root 是否指向项目根'); process.exit(1);
@@ -275,6 +276,25 @@ const CSS = `
   .brow b { flex: 0 0 6mm; text-align: right; color: var(--ac-dark); font-variant-numeric: tabular-nums; }
   .bar { flex: 1; height: 2.6mm; background: rgba(0,0,0,.07); border-radius: 1.6mm; overflow: hidden; }
   .bar i { display: block; height: 100%; background: var(--ac); border-radius: 1.6mm; }
+
+  /* ===== 封面 / 封底 ===== */
+  .cover-pg { break-before: page; display: flex; flex-direction: column; }
+  .ov-pg { break-before: page; }   /* 封面之后总览必须自己分页（break-before 对首个元素无效） */
+  .cv-kick { font-size: 9pt; font-weight: 500; letter-spacing: .42em; color: var(--ac); margin-top: 4mm; }
+  .cv-grid { display: flex; flex-wrap: wrap; gap: 4mm; margin: 7mm 0 2mm; }
+  .cv-tile { width: calc((100% - 8mm) / 3); aspect-ratio: 3 / 4.1; border-radius: 3mm; overflow: hidden;
+             background: #f1f1f4; border-bottom: 2.2mm solid var(--tc, var(--ac)); }
+  .cv-tile img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .cv-titleblock { margin-top: auto; }
+  .cv-title { font-family: "LXGW WenKai"; font-weight: 700; font-size: 30pt; color: #141419; line-height: 1.3; }
+  .cv-sub { font-size: 10.5pt; color: #6b6b76; margin-top: 2.5mm; letter-spacing: .06em; }
+  .cv-foot { display: flex; justify-content: space-between; border-top: 1.6px solid var(--ac); margin-top: 6mm;
+             padding-top: 3mm; font-size: 8.5pt; letter-spacing: .18em; color: #6b6b76; }
+  .back-pg { break-before: page; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
+  .bk-end { font-family: "LXGW WenKai"; font-weight: 700; font-size: 52pt; color: var(--ac); opacity: .16; line-height: 1; }
+  .bk-title { font-family: "LXGW WenKai"; font-weight: 700; font-size: 15pt; color: #141419; margin-top: 10mm; }
+  .bk-line { font-size: 9pt; color: #6b6b76; margin-top: 2mm; letter-spacing: .08em; }
+  .bk-cred { font-size: 7.5pt; color: #8b8b96; letter-spacing: .14em; margin-top: 18mm; }
 `;
 
 // ---- 组装 ----
@@ -306,7 +326,7 @@ for (const [i, rec] of shows.entries()) {
   if (r.accent && /^#[0-9a-fA-F]{6}$/.test(String(r.accent))) { ac = String(r.accent).toLowerCase(); acSrc = '手动指定'; }
   else if (cover) { const ex = await extractAccent(path.join(coverDir, slug + '.jpg')); if (ex) { ac = ex; acSrc = '封面取色'; } }
   console.log(`主题色 ${rec.folder} -> ${ac}（${acSrc}）`);
-  showMeta.push({ title, ac, total: totalEps(rec) });
+  showMeta.push({ title, ac, total: totalEps(rec), cover });
 
   const art = cover ? `<div class="art"><img src="${cover}" alt=""></div>` : `<div class="art"></div>`;
   // 制作与声优：结构化渲染（解析失败降级原文本）
@@ -415,6 +435,24 @@ const almHtml = (() => {
   </div>`;
 })();
 const almPage = almHtml ? `<div class="page alm-pg" style="${varsFor(DEFAULT_ACCENT)}">${almHtml}</div>` : '';
+// ---- 封面 / 封底 ----
+const tiles = showMeta.filter(m => m.cover).slice(0, 9)
+  .map(m => `<div class="cv-tile" style="--tc:${m.ac}"><img src="${m.cover}" alt=""></div>`).join('');
+const coverPage = `<div class="page cover-pg" style="${varsFor(DEFAULT_ACCENT)}">
+  <div class="cv-kick">ANIME COLLECTION</div>
+  ${tiles ? `<div class="cv-grid">${tiles}</div>` : ''}
+  <div class="cv-titleblock">
+    <div class="cv-title">${esc(BOOK_TITLE)}</div>
+    <div class="cv-sub">${yearSpan || NOW} · ${shows.length} 部 · ${grand} 集</div>
+  </div>
+  <div class="cv-foot"><span>${NOW}</span><span>${String(shows.length).padStart(2, '0')} WORKS</span></div>
+</div>`;
+const backPage = `<div class="page back-pg" style="${varsFor(DEFAULT_ACCENT)}">
+  <div class="bk-end">完</div>
+  <div class="bk-title">${esc(BOOK_TITLE)}</div>
+  <div class="bk-line">${yearSpan || NOW} · ${shows.length} 部 · ${grand} 集</div>
+  <div class="bk-cred">ANIME COLLECTION · ${NOW} · Generated with anime-collection-book</div>
+</div>`;
 // 时间轴：按首播年份分列（竖排名）
 const tlHtml = (() => {
   const byYear = {};
@@ -432,10 +470,11 @@ const tlHtml = (() => {
 })();
 const html = `<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8">
 <meta name="accent" content="#4f46e5">
-<title>番剧收藏简介</title><style>${CSS}</style></head><body><div class="page">
+<title>${esc(BOOK_TITLE)}</title><style>${CSS}</style></head><body>${coverPage}
+<div class="page ov-pg">
   <div class="thd">
     <div class="kick">ANIME COLLECTION · ${NOW}</div>
-    <h1>番剧收藏简介</h1>
+    <h1>${esc(BOOK_TITLE)}</h1>
     <div class="sub">共 ${shows.length} 部 · ${grandUnits} 个单元 · ${grand} 集 ｜ 剧情一览 · 原作情报 · 更新动态 · 收藏清单</div>
   </div>
   <div class="stats">
@@ -454,6 +493,7 @@ ${almPage}
 <div class="page">
 ${chapters.join('\n')}
 </div>
+${backPage}
 </body></html>`;
 
 fs.writeFileSync(path.join(OUT, '番剧收藏简介.html'), html, 'utf8');
