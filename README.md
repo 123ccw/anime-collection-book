@@ -11,9 +11,15 @@
 
 这是一个给 **AI agent**（Claude Code / ZCode / Cursor 等，需具备文件读写 + Shell + 联网 + 读图能力）使用的 skill，符合 [Agent Skills 开放格式](https://code.claude.com/docs/en/skills)（SKILL.md + 附属脚本），同时按 Claude Code **插件市场**规范打包。
 
-| 总览页（统计卡 + 年份时间轴 + 带页码目录） | 章节首页（官方海报 + 结构化制作表 + 状态徽章） |
+> 以下效果图为 **虚构演示作品**（`evals/fixture/`，含程序生成的示例封面）——真实书本使用官方海报时请遵守下方「关于素材版权」。
+
+| 总览页（统计卡 + 年份时间轴 + 带页码目录） | 数说收藏页（大数字统计） |
 |---|---|
-| ![总览页](docs/preview-1-overview.png) | ![章节首页](docs/preview-2-show.png) |
+| ![总览页](docs/preview-1-overview.png) | ![数说收藏页](docs/preview-2-datanotes.png) |
+
+| 章节首页（海报 + 台词卡 + 结构化制作表 + 状态徽章） |
+|---|
+| ![章节首页](docs/preview-3-show.png) |
 
 ## 安装
 
@@ -77,9 +83,13 @@
 封面必须让 agent 亲眼看（防张冠李戴）；查不到的信息写"未核实"，禁止编造；发布前全页目检。
 完整踩坑清单（13 条）与数据源用法见 [`references/pipeline.md`](anime-collection-book/skills/anime-collection-book/references/pipeline.md)。
 
+## 关于素材版权
+
+本工具只做排版：**海报、立绘等图片由使用者自行从公开渠道获取**，本仓库不附带任何第三方作品素材（README 与 `evals/` 中的示例均为虚构作品或程序生成的占位图）。
+
+生成的册子若包含官方海报/截图，请仅用于**个人收藏**；公开传播（发群、上传平台、印制售卖）前请自行评估授权——官方美术的版权属于各制作委员会/原作者。同理，角色设定与剧情资料的引用请标注来源（本工具支持在封底填写 `credits`）。
+
 ## 许可
 
 - **本仓库代码**：MIT（见 [LICENSE](LICENSE)）
-- **生成物内嵌字体**：霞鹜文楷（LXGW WenKai），以 **SIL OFL 1.1** 授权。版权归 **LXGW** 与上游 **The Klee Project Authors** 所有——该字体基于 FONTWORKS 出品字体「Klee One」衍生。OFL 允许子集化嵌入与随书分发，但**不得单独售卖字体文件**；改版字体不得使用「霞鹜 / LXGW」等保留名。
-
-管线会把你自备的 TTF 子集化后嵌入 HTML/PDF，因此**每本成品都会自动在封底带上字体版权署名**（OFL 要求版权声明随字体软件一起分发）。字体需自行从 [GitHub Releases](https://github.com/lxgw/LxgwWenKai/releases) 下载。
+- **使用时自备的字体**：霞鹜文楷（LXGW WenKai），SIL OFL 1.1 授权，版权归 **LXGW** 与上游 **The Klee Project Authors** 所有（基于 FONTWORKS「Klee One」衍生）。字体不进本仓库，需从 [GitHub Releases](https://github.com/lxgw/LxgwWenKai/releases) 自行下载；管线会子集化后嵌入你的成品，封底自动附版权署名（OFL 要求版权声明随字体软件分发，请勿删除）。
