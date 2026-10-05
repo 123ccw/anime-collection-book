@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.4.6
+
+- 技术债（速度）：`fetch_candidates.js` 的候选图**改为并发下载**（上限 4），`--pick` 收尾时删掉中间文件 `download.tmp`。原实现是 12 张逐张 `execFileSync` 同步下载、单张最长 90s，最坏要十几分钟且全程阻塞；顺带把"0 结果"的提示从「无候选（标签拼写？）」改成同时提示标签拼写**与网络可达性**（curl 的连接错误会被 `-s` 吞掉，容易把网络问题误诊成标签写错）
+- 技术债（脏状态）：`collect_fonts.js` 的字体子集**改为先写 `.tmp` 再原子替换**——此前中途中断会留半截 `wk-sub-*.woff2`，而构建会照样把它 base64 内嵌进 HTML，`check` 只查 U+FFFD 也发现不了"字体静默回退"。另：源 TTF 缺失时先给中文提示（此前是 fontTools 抛一堆看不懂的错）
+- 技术债（验收，重要）：`evals/check.js` 新增第 ⑦ 条断言「**两轮页码一致（已收敛）**」。原先只比"目录页码 vs 本轮 `_pagemap.json`"，而两者都是**同一轮**产物 → 页码漂移时会**错得一致而静默通过**。现在 `anime_pagemap.js` 每轮把上一轮映射存成 `_pagemap.prev.json`，断言两轮逐部相同；单轮产物会明确报缺失。**断言总数 12 → 13**，README / CONTRIBUTING / PR 模板 / evals/README 同步
+- 修复：`build_anime_html.js` 的 `NOW` 从 UTC 改为**本地时区**——跨月跑两轮时 UTC 会让刊头月份不同，给"两轮一致"白添漂移源
+- 验证：fixture 跑满两轮 + `npm run check` **13/13**；负向测试（人为篡改 `_pagemap.prev.json` 的一页 → 第 ⑦ 条必须失败）；`npm run candidates` 实跑（12 张并发下载）
+
 ## 1.4.5
 
 - 合规（重要）：成品封底现在**默认自带两行声明**——「资料来源：公开资料整理（AniList / Bangumi / 维基百科等），文字为重新撰写」+「**非官方粉丝作品 · 仅供个人收藏** · 海报/立绘版权归原作者与制作委员会所有 · 请勿售卖或公开传播」。此前 `credits` 是纯可选项、默认留空，等于分发出去的册子**零署名**；现由 `DEFAULT_CREDITS` 兜底，填了 `credits` 仍可覆盖

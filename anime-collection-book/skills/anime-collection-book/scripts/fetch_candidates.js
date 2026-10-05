@@ -7,7 +7,7 @@
 // 标签用 safebooru 写法（下划线，如 yanami_anna）；选图标准见 references/image-selection.md
 const fs = require('fs');
 const path = require('path');
-const { execFileSync } = require('child_process');
+const { execFileSync, execFile } = require('child_process');
 
 const CFG = (() => {
   const f = path.join(__dirname, 'config.json');   // 静默回退会让人读到陌生的 root，这里必须出声
@@ -31,6 +31,21 @@ const MIN_SIDE = 500;
 function curl(args) { return execFileSync('curl', args, { maxBuffer: 40 * 1024 * 1024 }); }
 function curlText(args) { return execFileSync('curl', args, { encoding: 'utf8', maxBuffer: 20 * 1024 * 1024 }); }
 function dl(url, dest, timeout) { curl(['-sL', '--connect-timeout', '12', '--max-time', timeout || '120', '-H', `User-Agent: ${UA}`, '-o', dest, url]); }
+
+// 并发下载：dl() 是同步的，12 张候选逐张下最坏要十几分钟。这里给个并发上限（safebooru 是公益站，别打太狠）。
+const CONCURRENCY = 4;
+function dlAsync(url, dest, timeout) {
+  return new Promise((resolve, reject) => {
+    execFile('curl', ['-sL', '--connect-timeout', '12', '--max-time', timeout || '120', '-H', `User-Agent: ${UA}`, '-o', dest, url],
+      { maxBuffer: 40 * 1024 * 1024 }, (err) => (err ? reject(err) : resolve()));
+  });
+}
+async function mapLimit(items, limit, worker) {
+  let next = 0;
+  await Promise.all(Array.from({ length: Math.max(1, Math.min(limit, items.length)) }, async () => {
+    for (;;) { const i = next++; if (i >= items.length) return; await worker(items[i], i); }
+  }));
+}
 
 function fetchList(tag) {
   // 硬过滤分级：safebooru 本身是 SFW 站，但同族图站常混入擦边素材，这里按白名单原则显式排除。
@@ -70,6 +85,7 @@ function fetchList(tag) {
     c.getContext('2d').drawImage(im, -Math.floor((im.width - w) / 2), -Math.floor((srcH - h) / 2));
     fs.mkdirSync(COVERS, { recursive: true });
     fs.writeFileSync(PICKED, c.toBuffer('image/jpeg', 92));
+    fs.rmSync(TMP, { force: true });   // 中间下载文件不再留着
     console.log(`已入库 ${PICKED}（${w}x${h}，取上部 ${(keep * 100).toFixed(0)}%，JPEG q92）`);
     console.log('下一步：改名到 anime_research/covers/<角色名>.jpg，并在 research JSON 的 cover/portrait 里引用');
     return;
@@ -81,14 +97,17 @@ function fetchList(tag) {
   const { createCanvas, loadImage } = require('@napi-rs/canvas');
   fs.mkdirSync(OUT, { recursive: true });
   const posts = fetchList(tag);
-  if (!posts.length) { console.error(tag + ': 无候选（标签拼写？）'); process.exit(2); }
+  if (!posts.length) { console.error(tag + ': 没有候选——先核对标签拼写（safebooru 用小写+下划线，如 yanami_anna），再确认网络能到 safebooru.org（curl 的连接错误有时被 -s 吞掉）'); process.exit(2); }
   const picks = posts.slice(0, LIMIT);
+  // 先把候选图并发拉全（原来是在下面的循环里逐张同步下载），再逐张评分、出瓦片
+  const files = picks.map((_, i) => path.join(OUT, 'cand-' + String(i).padStart(2, '0') + '.img'));
+  await mapLimit(picks, CONCURRENCY, async (p, i) => {
+    try { await dlAsync(p.file, files[i], '90'); } catch (e) { /* 单张失败：下面读图时自然跳过 */ }
+  });
   const tiles = [], manifest = [];
   for (let i = 0; i < picks.length; i++) {
-    const f = path.join(OUT, 'cand-' + String(i).padStart(2, '0') + '.img');
     try {
-      dl(picks[i].file, f, '90');
-      const im = await loadImage(f);
+      const im = await loadImage(files[i]);
       // 非白底比例（0=纯白/透明底；越高越"有环境"）
       const chk = createCanvas(64, 64); const cc = chk.getContext('2d');
       cc.drawImage(im, 0, 0, 64, 64);

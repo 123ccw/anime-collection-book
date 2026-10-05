@@ -9,7 +9,7 @@
 
 ## 提 PR
 
-1. 改脚本后必须：`node --check <脚本>` 全过 + 在一个测试项目根跑通 `npm run pipeline && npm run check`（12 条断言全绿）
+1. 改脚本后必须：`node --check <脚本>` 全过 + 在一个测试项目根跑通 `npm run pipeline && npm run check`（13 条断言全绿）
 2. 涉及 UI 文案变动的：跑一遍 `npm run sheet`，联络表目检无方块字/溢出（字体子集会自动并入 build 脚本文案，但请确认）
 3. 版本号改动需同步 5 处：`SKILL.md` frontmatter 的 `metadata.version`、`marketplace.json`、两个 `plugin.json`、`scripts/package.json`（`package-lock.json` 的根 `version` 跑 `npm i --package-lock-only` 交给 npm），并更新 `CHANGELOG.md`；CI 会自动校验这 5 处是否一致
 4. 提交信息用 Conventional Commits 风格（`feat:` / `fix:` / `docs:` / `chore:`）

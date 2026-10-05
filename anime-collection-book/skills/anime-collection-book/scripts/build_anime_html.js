@@ -167,7 +167,7 @@ const fmtDate = ts => ts ? new Date(ts).toISOString().slice(0, 10).replace(/-/g,
 const totalEps = r => (r.units || []).reduce((s, u) => s + (u.eps || 0), 0);
 const unitCount = r => (r.units || []).filter(u => (u.eps || 0) > 0).length;
 // 当前年月（UTC 口径，与 fmtDate 一致）——总览刊头 + 各章刊头共用，避免年份写死
-const NOW = (() => { const d = new Date(); return d.getUTCFullYear() + '.' + String(d.getUTCMonth() + 1).padStart(2, '0'); })();
+const NOW = (() => { const d = new Date(); return d.getFullYear() + '.' + String(d.getMonth() + 1).padStart(2, '0'); })();   // 本地时区：用 UTC 会让跨月跑的两轮刊头月份不同，白添漂移源
 
 // ---- 封面副本：research.cover（官方海报覆盖）优先，否则取视频库内封面（模式 B） ----
 const OUT = path.join(ROOT, 'anime_build');

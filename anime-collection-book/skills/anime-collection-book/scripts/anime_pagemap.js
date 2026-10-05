@@ -70,6 +70,11 @@ const PDF = path.join(ROOT, 'anime_build', '番剧收藏简介.pdf');
   }
   const out = path.join(ROOT, 'anime_build', '_pagemap.json');
   fs.mkdirSync(path.dirname(out), { recursive: true });
+  // 留一份上一轮映射：只比"目录页码 vs 本轮 _pagemap.json"是自证的（两者同轮），
+  // check 靠这个 prev 文件断言两轮收敛（见 evals/check.js ⑦）
+  if (fs.existsSync(out)) {
+    try { fs.copyFileSync(out, path.join(path.dirname(out), '_pagemap.prev.json')); } catch (e) { /* 首次运行没有上一轮 */ }
+  }
   fs.writeFileSync(out, JSON.stringify(map, null, 1));
   console.log('pagemap:', JSON.stringify(map));
   const missing = titles.filter(t => map[t] == null);

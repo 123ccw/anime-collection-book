@@ -97,7 +97,18 @@ try {
     rows.length === 0 ? '未从 HTML 解析到目录行（HTML 结构变了？）' : bad.slice(0, 3).join('；'));
 } catch (e) { /* pagemap 缺失时 ⑤ 已报错，不重复计失败 */ }
 
-// ⑦ 封面封底页已生成
+// ⑦ 两轮页码一致（收敛性）：目录页码与 _pagemap.json 都来自第二轮，只比这两个是自证的——必须比上一轮
+try {
+  const cur = JSON.parse(fs.readFileSync(P('anime_build', '_pagemap.json'), 'utf8'));
+  const prev = JSON.parse(fs.readFileSync(P('anime_build', '_pagemap.prev.json'), 'utf8'));
+  const keys = [...new Set([...Object.keys(prev), ...Object.keys(cur)])].sort();
+  const drift = keys.filter(k => prev[k] !== cur[k]).map(k => k + '：上轮 ' + prev[k] + ' → 本轮 ' + cur[k]);
+  t('两轮页码一致（已收敛）', drift.length === 0, drift.slice(0, 3).join('；'));
+} catch (e) {
+  t('两轮页码一致（已收敛）', false, '缺少 _pagemap.prev.json —— 请用 `npm run pipeline` 跑满两轮再验收（单轮产物无法判断是否收敛）');
+}
+
+// ⑧ 封面封底页已生成
 t('封面封底页已生成', html.includes('cover-pg') && html.includes('back-pg'));
 
 console.log('\n结果：' + pass + ' 通过，' + fail + ' 失败' + (fail ? '（回到 SKILL.md 的坑位清单排查）' : ''));

@@ -86,6 +86,24 @@ function pickPython() {
 }
 const PY = pickPython();
 if (!PY) { console.error('未找到带 fonttools+brotli 的 Python。请先执行: pip install fonttools brotli'); process.exit(1); }
-execFileSync(PY, args(TTF_R, OUT_R), { stdio: 'inherit' });
-execFileSync(PY, args(TTF_M, OUT_M), { stdio: 'inherit' });
+// 源字体缺失时先给中文提示——否则 fontTools 抛的错看不懂
+for (const ttf of [TTF_R, TTF_M]) {
+  if (!fs.existsSync(ttf)) {
+    console.error('未找到字体 ' + ttf + ' ——请把 LXGWWenKai-Regular.ttf / LXGWWenKai-Medium.ttf 放进 ' + path.join(ROOT, 'fonts'));
+    process.exit(1);
+  }
+}
+// 子集先写 .tmp 再原子替换：中途中断不会留半截 woff2 被后续构建静默内嵌（check 也查不出字体回退）
+function subsetTo(ttf, out) {
+  const tmp = out + '.tmp';
+  try {
+    execFileSync(PY, args(ttf, tmp), { stdio: 'inherit' });
+    fs.renameSync(tmp, out);
+  } catch (e) {
+    try { fs.rmSync(tmp, { force: true }); } catch (_) {}
+    throw e;
+  }
+}
+subsetTo(TTF_R, OUT_R);
+subsetTo(TTF_M, OUT_M);
 console.log('subsets written to fonts/wk-sub-*.woff2');
