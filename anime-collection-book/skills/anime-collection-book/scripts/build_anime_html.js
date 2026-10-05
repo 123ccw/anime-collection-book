@@ -315,9 +315,13 @@ const CSS = `
   .ov-pg { break-before: page; }   /* 封面之后总览必须自己分页（break-before 对首个元素无效） */
   .cv-kick { font-size: 9pt; font-weight: 500; letter-spacing: .42em; color: var(--ac); margin-top: 4mm; }
   .cv-grid { display: flex; flex-wrap: wrap; gap: 4mm; margin: 4mm 0 2mm; }
-  .cv-tile { width: calc((100% - 8mm) / 3); aspect-ratio: 3 / 4.1; border-radius: 3mm; overflow: hidden;
+  .cv-tile { position: relative; aspect-ratio: 3 / 4.1; border-radius: 3mm; overflow: hidden;
              background: #f1f1f4; border-bottom: 2.2mm solid var(--tc, var(--ac)); }
   .cv-tile img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  /* 主题色渲染：白底立绘被「洗」成主题色淡彩面板（白不再刺眼），底部渐深出层次 */
+  .cv-tile::after { content: ''; position: absolute; inset: 0; pointer-events: none; mix-blend-mode: multiply;
+      background: linear-gradient(180deg, rgba(255,255,255,0) 52%, rgba(0,0,0,.22) 100%), var(--tc, var(--ac));
+      opacity: .24; }
   .cv-titleblock { margin-top: auto; }
   .cv-title { font-family: "LXGW WenKai"; font-weight: 700; font-size: 30pt; color: #141419; line-height: 1.3; }
   .cv-sub { font-size: 10.5pt; color: #6b6b76; margin-top: 2.5mm; letter-spacing: .06em; }

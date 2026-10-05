@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.3.5
+
+- 新增：封面瓦片**主题色渲染**——每格按其角色主题色做 multiply 叠加，白底立绘被"洗"成淡彩面板（附底部渐深层次），整版不再是白块；同时保留底色下划线
+- 重构：**`config.json` 移出版本管理**（属于使用者本机配置）——仓库只提供 `config.example.json` 模板，`.gitignore` 已加规则；新装用户按 SKILL.md 复制模板即可
+- 文档：SKILL.md 初始化说明改为「复制 config.example.json 为 config.json」
+
 ## 1.3.4
 
 - 修复：collect_fonts 脚本缺 anime_base.json 时给出中文下一步指引（此前裸抛 ENOENT 堆栈——novel 实战清理中间产物后重跑时踩到）

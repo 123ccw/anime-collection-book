@@ -7,7 +7,7 @@
     {
       "name": "anime-collection-book",
       "source": "./anime-collection-book",
-      "version": "1.3.4",
+      "version": "1.3.5",
       "description": "Turn a list of anime names (or a local video library) into a magazine-style PDF collection book: official covers, synopses, staff & cast, watch order, per-season spoiler guides, bookmarks and page footers. Also ships a novel domain pack: turn story notes into a character codex with a foreshadowing tracker — fully offline",
       "displayName": "Anime Collection Book",
       "displayName_i18n": {

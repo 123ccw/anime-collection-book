@@ -118,9 +118,9 @@ description: Use when 用户想把番剧/动画做成"收藏册/图鉴/纪念册
 2. 调研 agent 补 research JSON（production/watch_order/unit_synopses/cover 覆盖）
 3. 走「构建」
 
-### 构建（在 skill 的 `scripts/` 目录执行；首次先 `npm i`，并把 `config.json` 的 `root` 改为你的项目根）
+### 构建（在 skill 的 `scripts/` 目录执行；首次先 `npm i`，再把 `config.example.json` 复制为 `config.json` 并把 `root` 改为你的项目根）
 
-> `config.json` 的可选字段 `title`：自定义书名（默认《番剧收藏简介》），影响封面/总览/封底显示，输出文件名不变；改完照常 `npm run pipeline`（字体子集会自动收录新书名字符）
+> `config.json` 是**本机配置，不入库**（含你的路径/书名，见 .gitignore）；仓库只提供 `config.example.json` 模板。可用字段：`root`（项目根）、`vroot`（模式 B 视频库根）、`domain`（anime/novel）、`title`（自定义书名，默认《番剧收藏简介》，影响封面/总览/封底显示，输出文件名不变）；改完照常 `npm run pipeline`（字体子集会自动收录新书名字符）
 
 **一键（推荐）**：
 

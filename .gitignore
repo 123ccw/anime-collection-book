@@ -10,3 +10,6 @@ node_modules/
 /fonts/*.woff2
 /_allpages/
 /_sheets/
+
+# 本机配置：含使用者的项目路径/领域/书名，绝不入库（模板见同目录 config.example.json）
+config.json
