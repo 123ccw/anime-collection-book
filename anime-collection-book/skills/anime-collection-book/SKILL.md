@@ -1,11 +1,11 @@
 ---
 name: anime-collection-book
 license: MIT
-compatibility: Requires Node.js >=20 with npm, Python 3 + fonttools/brotli (font subsetting), Playwright Chromium (or system Edge), and internet access for online research.
+compatibility: Requires Node.js >=20 with npm, Python 3 + fonttools/brotli (font subsetting), Playwright Chromium (or system Edge), and internet access for anime research (novel mode is offline).
 metadata:
   author: 123ccw
-  version: "1.2.0"
-description: Use when 用户想把番剧/动画做成"收藏册/图鉴/纪念册/简介 PDF"——可只给片名清单（清单也可来自对话上文或文件，无需本地视频文件），也可基于本机视频收藏库；TV/剧场版/OVA 及 Galgame 视觉小说的同类整理均适用。产出杂志风 PDF：官方海报、无剧透简介（剧透独立成逐季表）、制作声优、主题歌与观看平台、补番顺序、可点击目录与书签页脚。不用于：非影音内容的整理（如游戏攻略）、追番进度管理（这不是 tracker）、视频文件整理/重命名/媒体库刮削（Jellyfin/Emby/Plex 场景）、对已有 PDF 的格式转换。
+  version: "1.3.0"
+description: Use when 用户想把番剧/动画做成"收藏册/图鉴/纪念册/简介 PDF"——可只给片名清单（清单也可来自对话上文或文件，无需本地视频文件），也可基于本机视频收藏库；TV/剧场版/OVA 及 Galgame 视觉小说的同类整理均适用。也用于把网文/小说的设定资料整理成"设定集/角色档案册/伏笔追踪手册/读者向无剧透图鉴 PDF"（数据来自用户本地稿件或笔记，离线完成）。产出杂志风 PDF：海报墙封面封底、无剧透简介（剧透独立成表）、结构化要点表、每部主题色章节、数说统计页、可点击目录与书签页脚，另可导出竖版分享卡 PNG。不用于：追番进度管理（这不是 tracker）、视频文件整理/重命名/媒体库刮削（Jellyfin/Emby/Plex 场景）、对已有 PDF 的格式转换、小说正文本身的写作或排版。
 ---
 
 # 番剧收藏册 PDF
@@ -21,6 +21,11 @@ description: Use when 用户想把番剧/动画做成"收藏册/图鉴/纪念册
 - **airdate 缺失会让总览时间轴静默丢列**——用 units 最早日期兜底（脚本已内置；自备数据时留意）
 
 > 完整 13 条坑位与解法在 `references/pipeline.md`，遇到具体报错时读。
+
+## 两种领域（config.json 的 domain 字段）
+
+- **anime**（默认）：番剧收藏册——本文件主体讲的就是它
+- **novel**：小说设定集——每"部"=一个角色/势力，伏笔表用 franchise 字段承载，界面标签自动切换（卷/章/伏笔回收…），**全程离线**（数据来自本地稿件，不联网调研）。字段映射与工作流见 `references/domain-novel.md`
 
 ## 两种模式
 

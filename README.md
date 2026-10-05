@@ -7,6 +7,8 @@
 **海报墙封面 + 「完」字封底**（书名可配），全书中文字体内嵌（霞鹜文楷子集），PDF 带可折叠书签与页脚页码。
 **系列完整度审计**（每部「收录 M/N 条」+ 待补清单）· `npm run cards` 一键导出**竖版收藏卡 PNG** 与高清整页图（社交发图）。
 
+> **内置两个领域包**：`config.json` 的 `"domain"` 切换 —— `anime`（默认，本仓库主示例）／`novel`：把同一引擎用于**小说设定集**——每个角色一章、伏笔追踪表（franchise 字段承载）、数说设定页、读者向脱敏版，全程离线。字段映射见 [domain-novel.md](anime-collection-book/skills/anime-collection-book/references/domain-novel.md)。
+
 这是一个给 **AI agent**（Claude Code / ZCode / Cursor 等，需具备文件读写 + Shell + 联网 + 读图能力）使用的 skill，符合 [Agent Skills 开放格式](https://code.claude.com/docs/en/skills)（SKILL.md + 附属脚本），同时按 Claude Code **插件市场**规范打包。
 
 | 总览页（统计卡 + 年份时间轴 + 带页码目录） | 章节首页（官方海报 + 结构化制作表 + 状态徽章） |

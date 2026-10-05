@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.3.0
+
+- 新增：**领域包结构**——`config.json` 新增 `"domain"` 字段（`anime` 默认 / `novel`），同一引擎服务两个场景，界面标签整体查表切换（部/集/首播/系列收录 ↔ 位/章/初登场/伏笔回收），数据字段结构完全不变
+- novel 领域包：每"部"=一个角色/势力；`units`=登场卷篇（eps=章数）、`franchise`=伏笔表（collected=已回收）、`production`=设定要点、`quote`=角色金句；**全程离线**（无联网调研环节）
+- 新文档：`references/domain-novel.md`（字段映射、工作流、读者版脱敏技巧）
+- SKILL.md description 升级为双场景触发；README 增加领域包说明
+- 兼容性说明：不配置 `domain` 时行为与 1.2.0 完全一致
+
 ## 1.2.0
 
 - 新增：**系列完整度审计**——research JSON 可选 `franchise` 字段（该系列全部条目盘点 + collected 标记），渲染刊头「系列收录 M/N」、章末待补清单（或「已收全 ✓」），数说页汇总「待补条目」

@@ -13,6 +13,35 @@ const CFG = (() => {
 const ROOT = CFG.root || 'C:\\anime-book';   // 项目根
 const VROOT = CFG.vroot || '';               // 模式 B（本机视频库）才填；模式 A 留空
 const BOOK_TITLE = String(CFG.title || '番剧收藏简介');   // 书名（封面/总览/封底共用；输出文件名固定不变）
+
+// ---- 领域包：anime（默认）/ novel ——界面标签整体切换，数据字段结构完全不变 ----
+// novel（小说设定集）：每"部"=一个角色/势力；units=登场卷篇(eps=章数)；franchise=伏笔表(collected=已回收)
+const DOMAIN = CFG.domain === 'novel' ? 'novel' : 'anime';
+const L = DOMAIN === 'novel' ? {
+  m1: '角色档案', m2: 'CHARACTER CODEX', kick: 'CHARACTER CODEX',
+  person: '位', stWorks: '位 角色', stUnit: '篇 篇章', stEps: '章 收录', stSpan: '时间跨度',
+  unitCnt: '篇', chapName: '章', heroLine: '篇幅', firstAir: '初登场', airUnit: '部连载中',
+  colUnit: '篇', colEps: '章数', colAir: '时间', colSop: '弧线（含剧透）', epsSuffix: '章',
+  hSyn: '角色小传', hProd: '设定要点', hMusic: '关系与登场', mkMusic: '重要关系', mkPlat: '登场卷',
+  hSource: '出处', hOrder: '登场顺序', hUpdate: '近况', hDetail: '出场详情',
+  frHero: '伏笔进度', frCard: '伏笔回收', frWait: '未回收', frDone: '已全部回收 ✓', frDoneShort: '全回收 ✓',
+  almTitle: '数说设定', almTotal: '档案总量', almSpan: '连载跨度', almLong: '戏份最重',
+  almGenre: '高频标签', almDecade: '年代分布', almDone: '完结 / 连载中', almAllDone: '全部档案已完结',
+  almFr: '待回收伏笔', almFrSub0: '全部伏笔均已回收', almFrSubN: '各角色盘点出的未回收伏笔',
+  tail: '角色弧线 · 设定要点 · 近况 · 出场清单', cardBadge: '档案卡',
+} : {
+  m1: '番剧收藏', m2: 'ANIME COLLECTION', kick: 'ANIME COLLECTION',
+  person: '部', stWorks: '部 作品', stUnit: '个单元', stEps: '集 收藏', stSpan: '收录年份跨度',
+  unitCnt: '个单元', chapName: '集', heroLine: '收藏', firstAir: '首播', airUnit: '部正在放送',
+  colUnit: '单元', colEps: '集数', colAir: '首播', colSop: '剧情（含剧透）', epsSuffix: '集',
+  hSyn: '剧情简介', hProd: '制作与声优', hMusic: '主题歌与观看', mkMusic: '主题歌', mkPlat: '观看平台',
+  hSource: '原作情报', hOrder: '补番顺序', hUpdate: '动画更新', hDetail: '收藏详情',
+  frHero: '系列收录', frCard: '系列条目', frWait: '待补', frDone: '已收全 ✓', frDoneShort: '收齐 ✓',
+  almTitle: '数说收藏', almTotal: '收藏总量', almSpan: '收录跨度', almLong: '最长系列',
+  almGenre: '最高频类型', almDecade: '年代分布', almDone: '完结 / 放送中', almAllDone: '收录作品全部完结',
+  almFr: '待补条目', almFrSub0: '全部系列条目均在收藏中', almFrSubN: '各系列盘点出的未收条目',
+  tail: '剧情一览 · 原作情报 · 更新动态 · 收藏清单', cardBadge: '收藏卡',
+};
 const BASE_FILE = path.join(ROOT, 'anime_base.json');
 if (!fs.existsSync(BASE_FILE)) {
   console.error('未找到 ' + BASE_FILE + ' ——模式 A 请先跑 npm run base；或检查 config.json 的 root 是否指向项目根'); process.exit(1);
@@ -340,7 +369,7 @@ for (const [i, rec] of shows.entries()) {
         : `<div class="card"><p>${esc(r.production)}</p></div>`)
     : '';
   const musicPlatHtml = (r.music || r.platforms)
-    ? `<h2>主题歌与观看</h2><div class="pcard">${r.music ? `<div class="mline"><span class="mk">主题歌</span><span class="mv">${esc(r.music)}</span></div>` : ''}${r.platforms ? `<div class="mline"><span class="mk">观看平台</span><span class="mv">${esc(r.platforms)}</span></div>` : ''}</div>`
+    ? `<h2>${L.hMusic}</h2><div class="pcard">${r.music ? `<div class="mline"><span class="mk">${L.mkMusic}</span><span class="mv">${esc(r.music)}</span></div>` : ''}${r.platforms ? `<div class="mline"><span class="mk">${L.mkPlat}</span><span class="mv">${esc(r.platforms)}</span></div>` : ''}</div>`
     : '';
   const unitSops = r.unit_synopses || [];
   const sopOf = (name) => { const hit = unitSops.find((u) => u.name === name); return hit ? hit.text : ''; };
@@ -354,7 +383,7 @@ for (const [i, rec] of shows.entries()) {
     .map(u => {
       const sop = sopOf(u.name);
       if (unitSops.length && !sop) console.warn('⚠ 单元无剧透文案（name 须与 units 逐字一致）: ' + rec.folder + ' / ' + u.name);
-      return `<tr><td>${esc(u.name)}</td><td>${u.eps} 集</td><td>${fmtDate(u.air) || '—'}</td>${
+      return `<tr><td>${esc(u.name)}</td><td>${u.eps} ${L.epsSuffix}</td><td>${fmtDate(u.air) || '—'}</td>${
         unitSops.length ? `<td class="sop">${esc(sop)}</td>` : ''}</tr>`;
     })
     .join('');
@@ -368,13 +397,13 @@ for (const [i, rec] of shows.entries()) {
   const frMiss = fr.filter(f => !f.collected);
   const frMissTxt = frMiss.map(f => `${f.kind ? f.kind + ' ' : ''}${f.name}${f.year ? '（' + f.year + '）' : ''}`).join('、');
   const frCardHtml = fr.length
-    ? `<div class="card"><p><b>系列条目 ${fr.length - frMiss.length}/${fr.length}</b>${frMiss.length ? ` ——待补：${esc(frMissTxt)}` : ' ——已收全 ✓'}</p></div>`
+    ? `<div class="card"><p><b>${L.frCard} ${fr.length - frMiss.length}/${fr.length}</b>${frMiss.length ? ` ——${L.frWait}：${esc(frMissTxt)}` : ` ——${L.frDone}`}</p></div>`
     : '';
   showMeta.push({ title, ac, total: totalEps(rec), cover, jp: titleJp, genres: genres.slice(0, 3), quote: q || null, frTotal: fr.length, frMiss: frMiss.length });
 
   chapters.push(`
   <div class="show" id="show${String(i + 1).padStart(2, '0')}" style="${varsFor(ac)}">
-    <div class="mast"><div class="m1">番剧收藏 · ${String(i + 1).padStart(2, '0')}</div><div class="m2">ANIME COLLECTION · ${NOW}</div></div>
+    <div class="mast"><div class="m1">${L.m1} · ${String(i + 1).padStart(2, '0')}</div><div class="m2">${L.m2} · ${NOW}</div></div>
     <div class="heroline">
       ${art}
       <div class="head">
@@ -382,27 +411,27 @@ for (const [i, rec] of shows.entries()) {
         ${titleJp ? `<div class="t2">${esc(titleJp)}</div>` : ''}
         ${genres.length ? `<div class="chips">${genres.map(g => `<span>${esc(g)}</span>`).join('')}</div>` : ''}
         ${ratings ? `<div class="score">评分　${ratings}</div>` : ''}
-        <div class="score">收藏　<b>${unitCount(rec)}</b> 个单元 · 共 <b>${totalEps(rec)}</b> 集${air0 ? ` · 首播 <b>${air0}</b>` : ''}</div>
+        <div class="score">${L.heroLine}　<b>${unitCount(rec)}</b> ${L.unitCnt} · 共 <b>${totalEps(rec)}</b> ${L.chapName}${air0 ? ` · ${L.firstAir} <b>${air0}</b>` : ''}</div>
         ${r.status ? `<div class="score"><span class="std ${stClass(r.status)}">${esc(r.status)}</span></div>` : ''}
-        ${fr.length ? `<div class="score">系列收录　<b>${fr.length - frMiss.length}</b> / <b>${fr.length}</b> 条</div>` : ''}
+        ${fr.length ? `<div class="score">${L.frHero}　<b>${fr.length - frMiss.length}</b> / <b>${fr.length}</b> 条</div>` : ''}
       </div>
     </div>
     ${quoteHtml}
-    ${synopsis ? `<h2>剧情简介<span class="sp">剧透注意</span></h2><p class="syn">${esc(synopsis)}</p>` : ''}
-    ${r.production ? `<h2>制作与声优</h2>${prodHtml}` : ''}
+    ${synopsis ? `<h2>${L.hSyn}<span class="sp">剧透注意</span></h2><p class="syn">${esc(synopsis)}</p>` : ''}
+    ${r.production ? `<h2>${L.hProd}</h2>${prodHtml}` : ''}
     ${musicPlatHtml}
-    ${src ? `<h2>原作情报</h2><div class="card"><p>${esc(src)}</p></div>` : ''}
-    ${r.watch_order ? `<h2>补番顺序</h2><div class="card"><p>${esc(r.watch_order)}</p></div>` : ''}
-    ${upd ? `<h2>动画更新</h2><div class="card"><p>${esc(upd)}</p></div>` : ''}
-    <h2>收藏详情</h2>
+    ${src ? `<h2>${L.hSource}</h2><div class="card"><p>${esc(src)}</p></div>` : ''}
+    ${r.watch_order ? `<h2>${L.hOrder}</h2><div class="card"><p>${esc(r.watch_order)}</p></div>` : ''}
+    ${upd ? `<h2>${L.hUpdate}</h2><div class="card"><p>${esc(upd)}</p></div>` : ''}
+    <h2>${L.hDetail}</h2>
     <table><thead><tr>${unitSops.length
-      ? `<th style="width:${nameW}mm">单元</th><th style="width:14mm">集数</th><th style="width:26mm">首播</th><th>剧情（含剧透）</th>`
-      : `<th style="width:${Math.min(64, nameW + 14)}mm">单元</th><th style="width:34mm">集数</th><th>首播</th>`}</tr></thead>
+      ? `<th style="width:${nameW}mm">${L.colUnit}</th><th style="width:14mm">${L.colEps}</th><th style="width:26mm">${L.colAir}</th><th>${L.colSop}</th>`
+      : `<th style="width:${Math.min(64, nameW + 14)}mm">${L.colUnit}</th><th style="width:34mm">${L.colEps}</th><th>${L.colAir}</th>`}</tr></thead>
     <tbody>${unitRows}</tbody></table>
     ${frCardHtml}
   </div>`);
 
-  tocRows += `<li><a href="#show${String(i + 1).padStart(2, '0')}">${esc(title)}</a> <span class="n-ep">${totalEps(rec)} 集</span><span class="pg">${pgOf(title)}</span></li>`;
+  tocRows += `<li><a href="#show${String(i + 1).padStart(2, '0')}">${esc(title)}</a> <span class="n-ep">${totalEps(rec)} ${L.chapName}</span><span class="pg">${pgOf(title)}</span></li>`;
 }
 
 const grand = shows.reduce((s, r) => s + totalEps(r), 0);
@@ -441,15 +470,15 @@ const almHtml = (() => {
   const bars = decKeys.map(k => `<div class="brow"><span>${k}s</span><div class="bar"><i style="width:${Math.round(decades[k] / decMax * 100)}%"></i></div><b>${decades[k]}</b></div>`).join('');
   return `
   <div class="alm">
-    <h2>数说收藏<span class="sp">DATA NOTES</span></h2>
+    <h2>${L.almTitle}<span class="sp">DATA NOTES</span></h2>
     <div class="alm-grid">
-      ${block('收藏总量', `${grand} 集`, `${shows.length} 部 · ${grandUnits} 个单元`)}
-      ${block('收录跨度', spanYears, span)}
-      ${longest && longest.total ? block('最长系列', `${longest.total} 集`, longest.title, longest.ac) : ''}
-      ${topGenre ? block('最高频类型', `「${topGenre[0]}」`, `在 ${topGenre[1]} 部作品中出现`) : ''}
-      ${decKeys.length ? `<div class="st2"><div class="lb">年代分布</div><div style="margin-top:2mm">${bars}</div></div>` : ''}
-      ${block('完结 / 放送中', `${doneCnt} / ${airCnt}`, airCnt ? `${airCnt} 部正在放送` : (doneCnt === shows.length ? '收录作品全部完结' : '以各章状态徽章为准'))}
-      ${frShows.length ? block('待补条目', missTotal ? `${missTotal} 条` : '收齐 ✓', missTotal ? '各系列盘点出的未收条目' : '全部系列条目均在收藏中') : ''}
+      ${block(L.almTotal, `${grand} ${L.chapName}`, `${shows.length} ${L.person} · ${grandUnits} ${L.stUnit}`)}
+      ${block(L.almSpan, spanYears, span)}
+      ${longest && longest.total ? block(L.almLong, `${longest.total} ${L.chapName}`, longest.title, longest.ac) : ''}
+      ${topGenre ? block(L.almGenre, `「${topGenre[0]}」`, `在 ${topGenre[1]} ${L.person}作品中出现`) : ''}
+      ${decKeys.length ? `<div class="st2"><div class="lb">${L.almDecade}</div><div style="margin-top:2mm">${bars}</div></div>` : ''}
+      ${block(L.almDone, `${doneCnt} / ${airCnt}`, airCnt ? `${airCnt} ${L.airUnit}` : (doneCnt === shows.length ? L.almAllDone : '以各章状态徽章为准'))}
+      ${frShows.length ? block(L.almFr, missTotal ? `${missTotal} 条` : L.frDoneShort, missTotal ? L.almFrSubN : L.almFrSub0) : ''}
     </div>
   </div>`;
 })();
@@ -458,19 +487,19 @@ const almPage = almHtml ? `<div class="page alm-pg" style="${varsFor(DEFAULT_ACC
 const tiles = showMeta.filter(m => m.cover).slice(0, 9)
   .map(m => `<div class="cv-tile" style="--tc:${m.ac}"><img src="${m.cover}" alt=""></div>`).join('');
 const coverPage = `<div class="page cover-pg" style="${varsFor(DEFAULT_ACCENT)}">
-  <div class="cv-kick">ANIME COLLECTION</div>
+  <div class="cv-kick">${L.kick}</div>
   ${tiles ? `<div class="cv-grid">${tiles}</div>` : ''}
   <div class="cv-titleblock">
     <div class="cv-title">${esc(BOOK_TITLE)}</div>
-    <div class="cv-sub">${yearSpan || NOW} · ${shows.length} 部 · ${grand} 集</div>
+    <div class="cv-sub">${yearSpan || NOW} · ${shows.length} ${L.person} · ${grand} ${L.chapName}</div>
   </div>
   <div class="cv-foot"><span>${NOW}</span><span>${String(shows.length).padStart(2, '0')} WORKS</span></div>
 </div>`;
 const backPage = `<div class="page back-pg" style="${varsFor(DEFAULT_ACCENT)}">
   <div class="bk-end">完</div>
   <div class="bk-title">${esc(BOOK_TITLE)}</div>
-  <div class="bk-line">${yearSpan || NOW} · ${shows.length} 部 · ${grand} 集</div>
-  <div class="bk-cred">ANIME COLLECTION · ${NOW} · Generated with anime-collection-book</div>
+  <div class="bk-line">${yearSpan || NOW} · ${shows.length} ${L.person} · ${grand} ${L.chapName}</div>
+  <div class="bk-cred">${L.m2} · ${NOW} · Generated with anime-collection-book</div>
 </div>`;
 // 时间轴：按首播年份分列（竖排名）；年份多时逐级收紧防挤爆
 const tl = (() => {
@@ -497,15 +526,15 @@ const html = `<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8">
 <title>${esc(BOOK_TITLE)}</title><style>${CSS}</style></head><body>${coverPage}
 <div class="page ov-pg">
   <div class="thd">
-    <div class="kick">ANIME COLLECTION · ${NOW}</div>
+    <div class="kick">${L.kick} · ${NOW}</div>
     <h1>${esc(BOOK_TITLE)}</h1>
-    <div class="sub">共 ${shows.length} 部 · ${grandUnits} 个单元 · ${grand} 集 ｜ 剧情一览 · 原作情报 · 更新动态 · 收藏清单</div>
+    <div class="sub">共 ${shows.length} ${L.person} · ${grandUnits} ${L.stUnit} · ${grand} ${L.chapName} ｜ ${L.tail}</div>
   </div>
   <div class="stats">
-    <div class="st"><b>${shows.length}</b><span>部 作品</span></div>
-    <div class="st"><b>${grandUnits}</b><span>个单元</span></div>
-    <div class="st"><b>${grand}</b><span>集 收藏</span></div>
-    <div class="st"><b>${yearSpan}</b><span>收录年份跨度</span></div>
+    <div class="st"><b>${shows.length}</b><span>${L.stWorks}</span></div>
+    <div class="st"><b>${grandUnits}</b><span>${L.stUnit}</span></div>
+    <div class="st"><b>${grand}</b><span>${L.stEps}</span></div>
+    <div class="st"><b>${yearSpan}</b><span>${L.stSpan}</span></div>
   </div>
   <div class="tl${tl.cls}">${tl.html}</div>
   <div class="toc">
@@ -550,14 +579,14 @@ ${showMeta.filter(m => m.cover).map((m, i) => {
   const q = m.quote;
   const chips = (m.genres || []).map(g => `<span>${esc(g)}</span>`).join('');
   return `<div class="scard" style="${varsFor(m.ac)}">
-  <div class="scard-art"><img src="${m.cover}"><div class="scard-badge">收藏卡</div></div>
+  <div class="scard-art"><img src="${m.cover}"><div class="scard-badge">${L.cardBadge}</div></div>
   <div class="scard-body">
     <h3 class="scard-title">${esc(m.title)}</h3>
     ${m.jp ? `<div class="scard-jp">${esc(m.jp)}</div>` : ''}
     ${chips ? `<div class="scard-chips">${chips}</div>` : ''}
     ${q && q.text ? `<div class="scard-quote">「${esc(q.text)}」${q.speaker ? `<i>—— ${esc(q.speaker)}</i>` : ''}</div>` : ''}
   </div>
-  <div class="scard-foot"><span>${m.total} 集 · ${yearSpan || NOW}</span><span>${esc(BOOK_TITLE)}</span></div>
+  <div class="scard-foot"><span>${m.total} ${L.chapName} · ${yearSpan || NOW}</span><span>${esc(BOOK_TITLE)}</span></div>
 </div>`; }).join('\n')}
 </body></html>`;
 fs.writeFileSync(path.join(OUT, 'share_cards.html'), cardsHtml, 'utf8');
