@@ -131,7 +131,7 @@ npm run pipeline   # 字体子集 → 两轮「构建→渲染→页码反查」
 npm run check      # 自动断言（产物完整性 / 页码全命中 / 无乱码字符）
 npm run sheet      # 生成全页联络表（目检用）
 npm run cards      # 导出收藏卡 PNG + 高清整页图（社交发图用，anime_build/_cards 与 _gallery）
-npm run candidates -- <safebooru_tag>   # 抓候选图出对比图（选图用；--pick <编号> 取图入库，见 references/image-selection.md）
+npm run candidates -- <safebooru_tag>   # 候选图对比（**兜底渠道**：官方渠道找不到或需横向比较时才用；--pick <编号> 取图入库，渠道优先级见 references/image-selection.md）
 ```
 
 **手动分步**（调试或理解原理时用，脚本都在同一目录）：
@@ -172,6 +172,7 @@ node anime_pagemap.js      # ④ 从书签反查每部起始页 → _pagemap.jso
 - **不用同人图**（授权链条不清、质量不可控）、**不收录真人素材**（声优照片等涉及肖像权）
 - **不伪装官方**：封面不用官方 logo，不写"官方/正版"，封底的「非官方粉丝作品」声明保留
 - **字体署名保留**：霞鹜文楷 SIL OFL 1.1 要求版权声明随字体分发，封底那行不是可选装饰
+- **取图走官方渠道优先**：动画官网/官方 X/发行方/原作出版社 → AniList / Bangumi 条目图 → safebooru **仅作候选对比兜底**（选中后尽量回溯官方原图）。顺序与理由见 `references/image-selection.md`
 - **外发前清理（隐私）**：把项目文件夹拷给别人或上传网盘前，删掉 `scripts/config.json`（含你的本机绝对路径）、`names.txt`（你的片单＝观看偏好）、`anime_research/`（调研稿与已下载图片）。仓库不含这些（见 `.gitignore`），但**手动拷贝文件夹时会一起带走**
 
 ## 环境依赖
