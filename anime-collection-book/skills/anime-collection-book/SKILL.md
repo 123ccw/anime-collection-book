@@ -102,7 +102,7 @@ description: Use when 用户想把番剧/动画做成"收藏册/图鉴/纪念册
 - [ ] ② 合成：`npm run base`（模式 A）
 - [ ] ③ 构建：`npm run pipeline`（字体子集 + 两轮构建渲染 + 页码核对）
 - [ ] ④ 验收：`npm run check`（自动断言）→ 全页目检（见下）→ 封面逐张目视核对
-- [ ] ⑤ 交付：成品 PDF 覆盖到交付路径（只保留唯一一份）；**HTML 源一并保留**（`anime_build/番剧收藏简介.html`，用户可自行微调重渲）
+- [ ] ⑤ 交付：成品 PDF 覆盖到交付路径（只保留唯一一份）；**HTML 源一并保留**（`anime_build/番剧收藏简介.html`，用户可自行微调重渲）。**若用户只要成品 PDF**：可把 PDF 复制到项目根并清理 `anime_build/`、`anime_base.json`、`fonts/wk_*` 中间产物——但 `anime_research/`（调研成果+已核验图片，重做成本最高）与 `fonts/*.ttf`（重建必需，除非可从别处再取）必须保留
 
 ④ 全页目检的两种做法（按环境能力选择）：
 - **环境装有官方 pdf 插件时（优先）**：把 `_allpages/` 或 `_sheets/` 的页面 PNG 交给 `pdf:visual-judge` 子代理做逐页视觉验收（返回每页 pass/fail 与问题清单），比自检更结构化
