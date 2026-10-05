@@ -1,6 +1,8 @@
 // 字体子集化：收集 anime_base.json + anime_research/*.json + 固定文案的全部字符 → woff2 子集
 // ★ 首次使用：把 ROOT 改成你的项目根；并从霞鹜文楷 GitHub Releases 下载
-//   LXGWWenKai-Regular.ttf / LXGWWenKai-Medium.ttf 放到 ROOT/fonts/（OFL 许可，可自由使用）
+//   LXGWWenKai-Regular.ttf / LXGWWenKai-Medium.ttf 放到 ROOT/fonts/
+//   许可：SIL OFL 1.1——© LXGW；© The Klee Project Authors（基于 FONTWORKS「Klee One」衍生）
+//   本脚本产出子集化 woff2 供成品内嵌；成品封底自动附版权署名（OFL 要求随字体软件分发）
 // 依赖：python -m pip install fonttools brotli
 // 用法: node collect_fonts.js
 const fs = require('fs');

@@ -333,6 +333,7 @@ const CSS = `
   .bk-line { font-size: 9pt; color: #6b6b76; margin-top: 2mm; letter-spacing: .08em; }
   .bk-cred { font-size: 7.5pt; color: #8b8b96; letter-spacing: .14em; margin-top: 18mm; }
   .bk-src { font-size: 7pt; color: #a0a0aa; margin-top: 3mm; line-height: 1.7; max-width: 120mm; }
+  .bk-font { font-size: 6.5pt; color: #b0b0ba; margin-top: 5mm; line-height: 1.7; max-width: 130mm; }
 `;
 
 // ---- 组装 ----
@@ -525,6 +526,7 @@ const backPage = `<div class="page back-pg" style="${varsFor(DEFAULT_ACCENT)}">
   <div class="bk-line">${yearSpan || NOW} · ${shows.length} ${L.person} · ${grand} ${L.chapName}</div>
   <div class="bk-cred">${L.m2} · ${NOW} · Generated with anime-collection-book</div>
   ${CFG.credits ? `<div class="bk-src">${esc(CFG.credits)}</div>` : ''}
+  <div class="bk-font">本册中文字体：霞鹜文楷 LXGW WenKai（SIL OFL 1.1）｜© LXGW｜© The Klee Project Authors（基于 FONTWORKS「Klee One」衍生）</div>
 </div>`;
 // 时间轴：按首播年份分列（竖排名）；年份多时逐级收紧防挤爆
 const tl = (() => {

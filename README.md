@@ -79,4 +79,7 @@
 
 ## 许可
 
-代码 MIT。霞鹜文楷字体版权归其作者，遵循 [SIL OFL 1.1](https://openfontlicense.org/)（需自行下载）。
+- **本仓库代码**：MIT（见 [LICENSE](LICENSE)）
+- **生成物内嵌字体**：霞鹜文楷（LXGW WenKai），以 **SIL OFL 1.1** 授权。版权归 **LXGW** 与上游 **The Klee Project Authors** 所有——该字体基于 FONTWORKS 出品字体「Klee One」衍生。OFL 允许子集化嵌入与随书分发，但**不得单独售卖字体文件**；改版字体不得使用「霞鹜 / LXGW」等保留名。
+
+管线会把你自备的 TTF 子集化后嵌入 HTML/PDF，因此**每本成品都会自动在封底带上字体版权署名**（OFL 要求版权声明随字体软件一起分发）。字体需自行从 [GitHub Releases](https://github.com/lxgw/LxgwWenKai/releases) 下载。

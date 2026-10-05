@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.4.2
+
+- 修复（合规）：成品内嵌霞鹜文楷子集，但此前**没有任何字体版权署名**——OFL 1.1 要求版权声明随字体软件分发。现封底**自动附完整署名**（© LXGW ｜ © The Klee Project Authors，基于 FONTWORKS「Klee One」衍生）
+- 修复：README 许可节原写「版权归其作者」，**漏了上游 Klee Project Authors**（霞鹜文楷是二创字体）；同时补充「不得单独售卖 / 保留名」等 OFL 注意事项
+- 文档：SKILL.md 与 collect_fonts 的字体说明同步补全版权链，并注明封底署名不要删
+
 ## 1.4.1
 
 - 新增：**`extra` 补记卡**（可选 `{title, text}`）——装载彩蛋/考证/补注一类补充内容，渲染为章内卡片

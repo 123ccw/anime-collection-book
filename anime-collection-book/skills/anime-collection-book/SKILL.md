@@ -167,7 +167,7 @@ node anime_pagemap.js      # ④ 从书签反查每部起始页 → _pagemap.jso
 - **操作系统**：脚本按 **Windows** 优先编写（cmd/字符编码处理）；macOS/Linux 下核心流程可用（python 已自动探测 python3），但类模式 B 的 Windows 专属步骤（文件图标/桌面集成）需自行适配
 - Node.js ≥20；npm 包：playwright（+`npx playwright install chromium`，失败回退 `channel:'msedge'`）、pdfjs-dist（legacy）、@napi-rs/canvas —— 在 `scripts/` 目录执行 `npm i`
 - Python 3 + `pip install fonttools brotli`（字体子集；脚本自动探测 python3/python）
-- 字体：霞鹜文楷 LXGW WenKai（OFL，GitHub Releases 下 Regular/Medium TTF 放 `<项目根>/fonts/`）
+- 字体：霞鹜文楷 LXGW WenKai（SIL OFL 1.1，© LXGW ｜ © The Klee Project Authors，基于 FONTWORKS「Klee One」衍生；GitHub Releases 下 Regular/Medium TTF 放 `<项目根>/fonts/`）。**成品会内嵌字体子集，封底自动附版权署名——不要删**（OFL 要求版权声明随字体软件分发）
 - **agent 能力要求**：文件读写 + Shell 执行 + 联网搜索 + **多模态读图**（封面目检必需）；任何满足这四点的 agent（Claude Code / ZCode / Cursor agent 等）均可运行，无厂商绑定
 - 模式 B 另需 ffmpeg（视频抽帧补封面）；Windows 下 ffmpeg 中文路径要用 ASCII 临时目录中转
 
