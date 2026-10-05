@@ -11,7 +11,7 @@ const CFG = (() => {
 const ROOT = CFG.root || 'C:\\anime-book';   // 项目根（★在 config.json 里改）
 const RDIR = path.resolve(ROOT, 'anime_research');
 if (!fs.existsSync(path.join(ROOT, 'names.txt'))) {
-  console.error('未找到 ' + path.join(ROOT, 'names.txt') + ' ——请先写一行一部的番剧名单'); process.exit(1);
+  console.error('未找到 ' + path.join(ROOT, 'names.txt') + ' ——请先写一行一项的名单（番剧名，或 novel 模式下的角色名，见 SKILL.md）'); process.exit(1);
 }
 if (!fs.existsSync(RDIR)) {
   console.error('未找到 ' + RDIR + ' 目录——请先调研（见 SKILL.md），把每部的 <作品名>.json 放进去'); process.exit(1);

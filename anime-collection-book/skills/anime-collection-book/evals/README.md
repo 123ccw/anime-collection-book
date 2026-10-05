@@ -14,6 +14,8 @@ npm run check
 
 `fixture/` 是一份**可复现的最小数据集**（2 部虚构作品：一部全字段、一部仅必填），用来验证"从零开始能不能跑通"。
 
+`fixture-novel/` 是 **novel 领域包**的对应数据集（2 个虚构角色：一部全字段含伏笔表、一部仅必填）——验证标签切换与伏笔渲染。
+
 ```bash
 # 1. 建临时项目根，放入 fixture 与字体
 mkdir /tmp/anime-eval && cp -r fixture/* /tmp/anime-eval/
@@ -26,11 +28,13 @@ npm run base && npm run pipeline && npm run check
 # 4. 把 config.json 的 root 改回你的正式项目根
 ```
 
+> novel 自测：同样步骤换 `fixture-novel/`，且 config.json 需加 `"domain": "novel"` 与 `"title"`。预期：全部标签为角色/篇/章/伏笔回收；「连载中」状态徽章为绿色；沈观澜章末出现「伏笔回收 2/2 ——已全部回收 ✓」。
+
 ## 期望结果（fixture）
 
 | 检查项 | 期望 |
 |---|---|
 | `npm run pipeline` | 两轮页码一致，无 ⚠ 警告（两部作品的 unit_synopses name 均与 units 对齐） |
 | `npm run check` | 全部通过 |
-| 成品页数 | 6-7 页（封面 1 页 + 总览 1 页 + 数说收藏 1 页 + 每部 1-2 页 + 封底 1 页） |
+| 成品页数 | 6-8 页（封面 1 页 + 总览 1 页 + 数说收藏 1 页 + 每部 1-2 页 + 封底 1 页） |
 | 特殊路径覆盖 | 「测试小作品」验证无海报/无剧透表/无台词的降级三列表；「星海旅人」验证完整板块（含台词卡）；封面页在无海报时降级为纯排印封面 |

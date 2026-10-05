@@ -19,7 +19,7 @@ const BOOK_TITLE = String(CFG.title || '番剧收藏简介');   // 书名（封�
 const DOMAIN = CFG.domain === 'novel' ? 'novel' : 'anime';
 const L = DOMAIN === 'novel' ? {
   m1: '角色档案', m2: 'CHARACTER CODEX', kick: 'CHARACTER CODEX',
-  person: '位', stWorks: '位 角色', stUnit: '篇 篇章', stEps: '章 收录', stSpan: '时间跨度',
+  person: '位', stWorks: '位 角色', stUnit: '篇章', stEps: '章 收录', stSpan: '时间跨度',
   unitCnt: '篇', chapName: '章', heroLine: '篇幅', firstAir: '初登场', airUnit: '部连载中',
   colUnit: '篇', colEps: '章数', colAir: '时间', colSop: '弧线（含剧透）', epsSuffix: '章',
   hSyn: '角色小传', hProd: '设定要点', hMusic: '关系与登场', mkMusic: '重要关系', mkPlat: '登场卷',
@@ -154,7 +154,7 @@ function splitProduction(s) {
 function stClass(s) {
   // 「已完结 / 完结 / 完结篇」= 灰；但「未完结」不算（负向后顾排除）
   if (/(?<!未)完结/.test(s)) return 'std-done';
-  if (/放送中/.test(s)) return 'std-air';
+  if (/放送中|连载中/.test(s)) return 'std-air';   // novel 领域的状态词是「连载中」
   return 'std-soon';
 }
 
