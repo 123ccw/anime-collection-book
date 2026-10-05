@@ -10,14 +10,20 @@ const path = require('path');
 const { execFileSync } = require('child_process');
 
 const CFG = (() => {
-  try { return JSON.parse(fs.readFileSync(path.join(__dirname, 'config.json'), 'utf8')); } catch (e) { return {}; }
+  const f = path.join(__dirname, 'config.json');   // 静默回退会让人读到陌生的 root，这里必须出声
+  try { return JSON.parse(fs.readFileSync(f, 'utf8')); }
+  catch (e) {
+    console.warn('⚠ 读不到 ' + f + '（' + (e.code || e.message) + '）——请复制 config.example.json 为 config.json 并改 root；本次回退默认值');
+    return {};
+  }
 })();
 const ROOT = CFG.root || 'C:\\anime-book';
 const OUT = path.join(ROOT, 'anime_build', '_candidates');
 const SHEET = path.join(OUT, 'sheet.png');
 const MANIFEST = path.join(OUT, 'manifest.json');
 const TMP = path.join(OUT, 'download.tmp');
-const PICKED = path.join(ROOT, 'anime_research', 'covers', 'picked.jpg');
+const COVERS = path.join(ROOT, 'anime_research', 'covers');
+const PICKED = path.join(COVERS, 'picked.jpg');
 const UA = 'Mozilla/5.0 (compatible; anime-collection-book)';
 const LIMIT = 12, CELL_W = 300, CELL_H = 410, COLS = 4;   // 3:4.1 ≈ 封面瓦片比例
 const MIN_SIDE = 500;

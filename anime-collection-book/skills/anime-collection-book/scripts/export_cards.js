@@ -7,18 +7,25 @@ const { pathToFileURL } = require('url');
 
 // ---- 统一配置（同目录 config.json；缺失时回退默认值）----
 const CFG = (() => {
-  try { return JSON.parse(fs.readFileSync(path.join(__dirname, 'config.json'), 'utf8')); } catch (e) { return {}; }
+  const f = path.join(__dirname, 'config.json');   // 静默回退会让人读到陌生的 root，这里必须出声
+  try { return JSON.parse(fs.readFileSync(f, 'utf8')); }
+  catch (e) {
+    console.warn('⚠ 读不到 ' + f + '（' + (e.code || e.message) + '）——请复制 config.example.json 为 config.json 并改 root；本次回退默认值');
+    return {};
+  }
 })();
 const ROOT = CFG.root || 'C:\\anime-book';
 const BLD = path.join(ROOT, 'anime_build');
 const OUT_CARDS = path.join(BLD, '_cards');
 const OUT_GALLERY = path.join(BLD, '_gallery');
 
+let cleanupBrowser = null;   // 异常路径也要收起浏览器，不依赖进程退出时的兜底清理
 (async () => {
   const { chromium } = require('playwright');
   let browser;
   try { browser = await chromium.launch({ headless: true }); }
   catch (e) { browser = await chromium.launch({ channel: 'msedge', headless: true }); }
+  cleanupBrowser = browser;
 
   // ① 收藏卡 → PNG（deviceScaleFactor 2 保证清晰度）
   const cardsFile = path.join(BLD, 'share_cards.html');
@@ -61,4 +68,7 @@ const OUT_GALLERY = path.join(BLD, '_gallery');
   }
 
   await browser.close();
-})().catch(e => { console.error('导出失败：', e.message); process.exit(1); });
+})().catch(async e => {
+  if (cleanupBrowser) await cleanupBrowser.close().catch(() => {});
+  console.error('导出失败：', String(e && e.message || e).split('\n')[0]); process.exit(1);
+});

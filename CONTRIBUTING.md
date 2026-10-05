@@ -11,10 +11,10 @@
 
 1. 改脚本后必须：`node --check <脚本>` 全过 + 在一个测试项目根跑通 `npm run pipeline && npm run check`（12 条断言全绿）
 2. 涉及 UI 文案变动的：跑一遍 `npm run sheet`，联络表目检无方块字/溢出（字体子集会自动并入 build 脚本文案，但请确认）
-3. 版本号改动需同步四处：`marketplace.json`、两个 `plugin.json`、`scripts/package.json`，并更新 `CHANGELOG.md`
+3. 版本号改动需同步 5 处：`SKILL.md` frontmatter 的 `metadata.version`、`marketplace.json`、两个 `plugin.json`、`scripts/package.json`（`package-lock.json` 的根 `version` 跑 `npm i --package-lock-only` 交给 npm），并更新 `CHANGELOG.md`；CI 会自动校验这 5 处是否一致
 4. 提交信息用 Conventional Commits 风格（`feat:` / `fix:` / `docs:` / `chore:`）
 5. 不要提交 `node_modules/`、测试项目产物（`anime_build/`）与个人信息（片单、路径里的用户名等）
 
 ## 发布
 
-维护者发版流程：CHANGELOG 加条目 → 四处版本号同步 → commit（`feat:`/`fix:`）→ 打 `vX.Y.Z` tag → GitHub Release。
+维护者发版流程：CHANGELOG 加条目 → 5 处版本号同步 → commit（`feat:`/`fix:`）→ 打 `vX.Y.Z` tag → GitHub Release。

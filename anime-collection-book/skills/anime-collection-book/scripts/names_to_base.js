@@ -6,7 +6,12 @@ const path = require('path');
 
 // ---- 统一配置（同目录 config.json；缺失时回退默认值）----
 const CFG = (() => {
-  try { return JSON.parse(fs.readFileSync(path.join(__dirname, 'config.json'), 'utf8')); } catch (e) { return {}; }
+  const f = path.join(__dirname, 'config.json');   // 静默回退会让人读到陌生的 root，这里必须出声
+  try { return JSON.parse(fs.readFileSync(f, 'utf8')); }
+  catch (e) {
+    console.warn('⚠ 读不到 ' + f + '（' + (e.code || e.message) + '）——请复制 config.example.json 为 config.json 并改 root；本次回退默认值');
+    return {};
+  }
 })();
 const ROOT = CFG.root || 'C:\\anime-book';   // 项目根（★在 config.json 里改）
 const RDIR = path.resolve(ROOT, 'anime_research');

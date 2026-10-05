@@ -1,10 +1,10 @@
 ---
 name: anime-collection-book
 license: MIT
-compatibility: Requires Node.js >=20 with npm, Python 3 + fonttools/brotli (font subsetting), Playwright Chromium (or system Edge), and internet access for anime research (novel mode is offline).
+compatibility: Requires Node.js >=20 with npm, Python 3 + fonttools/brotli (font subsetting), Playwright Chromium (or system Edge), curl and the Tavily CLI (tvly; Windows needs PYTHONIOENCODING=utf-8 for --json), and internet access for anime research (novel mode is offline).
 metadata:
   author: 123ccw
-  version: "1.4.3"
+  version: "1.4.4"
 description: Use when 用户想把番剧/动画做成"收藏册/图鉴/纪念册/简介 PDF"——可只给片名清单（清单也可来自对话上文或文件，无需本地视频文件），也可基于本机视频收藏库；TV/剧场版/OVA 及 Galgame 视觉小说的同类整理均适用。也用于把网文/小说的设定资料整理成"设定集/角色档案册/伏笔追踪手册/读者向无剧透图鉴 PDF"（数据来自用户本地稿件或笔记，离线完成）。产出杂志风 PDF：海报墙封面封底、无剧透简介（剧透独立成表）、结构化要点表、每部主题色章节、数说统计页、可点击目录与书签页脚，另可导出竖版分享卡 PNG。不用于：追番进度管理（这不是 tracker）、视频文件整理/重命名/媒体库刮削（Jellyfin/Emby/Plex 场景）、对已有 PDF 的格式转换、小说正文本身的写作或排版。
 ---
 
@@ -12,7 +12,7 @@ description: Use when 用户想把番剧/动画做成"收藏册/图鉴/纪念册
 
 ## 高频坑位（开工前先读，都是实测踩出来的）
 
-- **国内网络直连 zh.wikipedia.org 拿不到数据**（curl 返回空）——一切经 tvly 抓取；tvly 传中文查询必须走 stdin（`printf '查询词' | tvly search - --json`）
+- **国内网络直连 zh.wikipedia.org 拿不到数据**（curl 返回空）——一切经 tvly 抓取。**Windows 上 tvly 输出 JSON 会撞控制台 GBK 编码**（`UnicodeEncodeError: 'gbk' codec can't encode...`）：先 `$env:PYTHONIOENCODING='utf-8'`（或 `chcp 65001`）再调用，中文当参数直传也可（实测可行）；个别 shell 下参数传递出问题时改走 stdin：`type q.txt | tvly search - --json`（POSIX：`printf '查询词' | tvly search - --json`）
 - **维基条目的曲名/人名常挂在标题行的下一行**（`片尾曲` ⏎ `: "曲名"`）——过滤时连取后 1-2 行，否则数据截断
 - **`unit_synopses[].name` 必须与 `units[].name` 逐字一致**——不一致该单元渲染为空白（构建时会打印 ⚠ 警告，看到就回查名字）
 - **封面要选角色正脸海报**——AniList 本篇条目封面常是舞台远景/背影，翻 `relations` 里的 MOVIE 条目找干净竖图；**完整选图审美标准见 `references/image-selection.md`（有戏 > 清晰）**
@@ -45,7 +45,7 @@ description: Use when 用户想把番剧/动画做成"收藏册/图鉴/纪念册
   }
 }
 ```
-> `cover` 为相对作品文件夹的封面路径（配合 build 脚本顶部的 `VROOT` 指向视频库根使用）；`airdate` 为毫秒时间戳。
+> `cover` 为相对作品文件夹的封面路径（模式 B 靠 `config.json` 的 `vroot` 指向视频库根；脚本内是 `const VROOT = CFG.vroot`，**不要改脚本**）；`airdate` 为毫秒时间戳。
 
 ## 项目结构（在用户选定的项目根目录下）
 
@@ -107,8 +107,8 @@ description: Use when 用户想把番剧/动画做成"收藏册/图鉴/纪念册
 - [ ] ⑤ 交付：成品 PDF 覆盖到交付路径（只保留唯一一份）；**HTML 源一并保留**（`anime_build/番剧收藏简介.html`，用户可自行微调重渲）。**若用户只要成品 PDF**：可把 PDF 复制到项目根并清理 `anime_build/`、`anime_base.json`、`fonts/wk_*` 中间产物——但 `anime_research/`（调研成果+已核验图片，重做成本最高）与 `fonts/*.ttf`（重建必需，除非可从别处再取）必须保留
 
 ④ 全页目检的两种做法（按环境能力选择）：
-- **环境装有官方 pdf 插件时（优先）**：把 `_allpages/` 或 `_sheets/` 的页面 PNG 交给 `pdf:visual-judge` 子代理做逐页视觉验收（返回每页 pass/fail 与问题清单），比自检更结构化
-- **无该插件时（降级）**：agent 亲自逐页读联络表 PNG 核对（空白页/溢出/封面张冠李戴/乱码）
+- **默认做法（必做）**：`npm run sheet` 出联络表 → agent 亲自逐页读 `_sheets/`（或 `_allpages/`）的 PNG 核对：空白页 / 溢出 / 封面张冠李戴 / 乱码。逐页读图是硬要求，不能用脚本断言代替
+- **可选增强**：若你的运行环境恰好另有视觉验收子代理（把页面 PNG 交给它返回逐页 pass/fail），可以接上做结构化验收——**它不是本 skill 的依赖**，没有就按上一条做，不影响交付
 
 ### 模式 A
 1. 读 `names.txt`，派调研 agent（**并发 ≤2**）逐部产出 research JSON（文件名 = 作品名.json）+ 下载官方海报
@@ -146,8 +146,8 @@ node anime_pagemap.js      # ④ 从书签反查每部起始页 → _pagemap.jso
 
 ## 数据核实方法（实测最顺的链路）
 
-- **搜索优先走 tvly（Tavily CLI）**：`printf '查询词' | tvly search - --json`——**中文必须走 stdin**，直接当参数传在 Windows 会编码损坏
-- **一次拿全 OP/ED + 平台的姿势**：`printf 'site:zh.wikipedia.org <作品名>' | tvly search - --max-results 1 --include-raw-content --json`——维基动画条目一页同含「主題歌」与「网络播放」两节，本地过滤关键词行即可。两个坑：① 本机直连 zh.wikipedia.org 常不通（curl 返回空），**必须走 tvly 服务端抓取**；② 曲名常挂在标题行的下一行（`片尾曲` ⏎ `: "曲名"`），过滤正则命中后要把「该行 + 后 1-2 行」一起取
+- **搜索优先走 tvly（Tavily CLI）**：Windows 先 `$env:PYTHONIOENCODING='utf-8'`（否则 `--json` 撞 GBK 编码直接失败），再 `tvly search "查询词" --json`；参数传递出问题时改走 stdin（`type q.txt | tvly search - --json`）。无需 API key 也能用（有速率上限，`tvly login` 解除）
+- **一次拿全 OP/ED + 平台的姿势**：`tvly search "site:zh.wikipedia.org <作品名>" --max-results 1 --include-raw-content --json`——维基动画条目一页同含「主題歌」与「网络播放」两节，本地过滤关键词行即可。两个坑：① 本机直连 zh.wikipedia.org 常不通（curl 返回空），**必须走 tvly 服务端抓取**；② 曲名常挂在标题行的下一行（`片尾曲` ⏎ `: "曲名"`），过滤正则命中后要把「该行 + 后 1-2 行」一起取
 - **AniList GraphQL**（封面/季集数）：curl 直接调，但搜索必须用罗马字/英文名并核对返回 title；**关联条目（尤其 relations 里的 MOVIE）的封面常比本篇条目更适合做册子封面**（本篇封面常是舞台远景/截图）
 - 本机连不上的源（维基、bgm.tv 部分接口）：一律经 tvly 抓，别用 curl 硬顶
 
@@ -167,10 +167,11 @@ node anime_pagemap.js      # ④ 从书签反查每部起始页 → _pagemap.jso
 - **操作系统**：脚本按 **Windows** 优先编写（cmd/字符编码处理）；macOS/Linux 下核心流程可用（python 已自动探测 python3），但类模式 B 的 Windows 专属步骤（文件图标/桌面集成）需自行适配
 - Node.js ≥20；npm 包：playwright（+`npx playwright install chromium`，失败回退 `channel:'msedge'`）、pdfjs-dist（legacy）、@napi-rs/canvas —— 在 `scripts/` 目录执行 `npm i`
 - Python 3 + `pip install fonttools brotli`（字体子集；脚本自动探测 python3/python）
+- **联网工具**：`tvly`（Tavily CLI；Windows 必须 `PYTHONIOENCODING=utf-8` 才用得了 `--json`，无需 API key 也可跑但有限速，`tvly login` 解除）与 `curl`（`fetch_candidates.js` 抓候选图、AniList GraphQL 都用它）——两者都不随本包提供，也没内置失败兜底，取数失败先确认它们可用
 - 字体：霞鹜文楷 LXGW WenKai（SIL OFL 1.1，© LXGW ｜ © The Klee Project Authors，基于 FONTWORKS「Klee One」衍生；GitHub Releases 下 Regular/Medium TTF 放 `<项目根>/fonts/`）。**成品会内嵌字体子集，封底自动附版权署名——不要删**（OFL 要求版权声明随字体软件分发）
 - **agent 能力要求**：文件读写 + Shell 执行 + 联网搜索 + **多模态读图**（封面目检必需）；任何满足这四点的 agent（Claude Code / ZCode / Cursor agent 等）均可运行，无厂商绑定
 - 模式 B 另需 ffmpeg（视频抽帧补封面）；Windows 下 ffmpeg 中文路径要用 ASCII 临时目录中转
 
 ## 详细版
 
-完整踩坑清单（13 条）、Tavily/AniList/VNDB/Steam 数据源用法、pdf-lib 盖章细节、给调研 agent 的 prompt 模板，见 `references/pipeline.md`。
+完整踩坑清单（13 条）、Tavily/AniList/VNDB/Steam 数据源用法、pdf-lib 页脚盖章（进阶·需自行 `npm i pdf-lib`，默认页脚页码由 Chromium 的 `footerTemplate` 出）、模式 B 的文件整理约定，见 `references/pipeline.md`。

@@ -6,7 +6,12 @@ const path = require('path');
 
 // ---- 统一配置（同目录 config.json；缺失时回退默认值）----
 const CFG = (() => {
-  try { return JSON.parse(fs.readFileSync(path.join(__dirname, 'config.json'), 'utf8')); } catch (e) { return {}; }
+  const f = path.join(__dirname, 'config.json');   // 静默回退会让人读到陌生的 root，这里必须出声
+  try { return JSON.parse(fs.readFileSync(f, 'utf8')); }
+  catch (e) {
+    console.warn('⚠ 读不到 ' + f + '（' + (e.code || e.message) + '）——请复制 config.example.json 为 config.json 并改 root；本次回退默认值');
+    return {};
+  }
 })();
 const ROOT = CFG.root || 'C:\\anime-book';   // 项目根（★在 config.json 里改）
 const PDF = path.join(ROOT, 'anime_build', '番剧收藏简介.pdf');
@@ -53,7 +58,12 @@ const PDF = path.join(ROOT, 'anime_build', '番剧收藏简介.pdf');
   const map = {};
   for (const item of outline) {
     const t = norm(item.title);
-    const hit = titles.find(x => t.includes(norm(x)) || norm(x).includes(t));
+    // 匹配优先级：完全相同 > 最长的被包含标题（避免 "Fate" 抢走 "Fate Zero" 的页码）
+    const exact = titles.filter(x => norm(x) === t);
+    const cand = exact.length
+      ? exact
+      : titles.filter(x => t.includes(norm(x)) || norm(x).includes(t)).sort((a, b) => norm(b).length - norm(a).length);
+    const hit = cand[0];
     if (!hit) continue;
     const p = await pageOf(item.dest);
     if (p && (map[hit] == null || p < map[hit])) map[hit] = p;
@@ -63,5 +73,10 @@ const PDF = path.join(ROOT, 'anime_build', '番剧收藏简介.pdf');
   fs.writeFileSync(out, JSON.stringify(map, null, 1));
   console.log('pagemap:', JSON.stringify(map));
   const missing = titles.filter(t => map[t] == null);
-  if (missing.length) { console.log('未命中:', missing); process.exitCode = 3; }
+  if (missing.length) {
+    // 只告警、不设非零退出码：pipeline 是 && 链，退出码会掐断第二轮 build/render，
+    // 让目录页码永远停在占位符。让流程跑完两轮，由 `npm run check` 把缺失报成失败。
+    console.warn('⚠ 未命中书签（这些作品目录页码会留占位符）:', missing.join('、'));
+    console.warn('  排查：书名是否与书签标题一致（空格外全等）；`npm run check` 会把它算作失败。');
+  }
 })().catch(e => { console.error('ERR', e.message); process.exit(1); });

@@ -17,7 +17,7 @@ printf 'site:zh.wikipedia.org <作品名>' | tvly search - --max-results 1 --inc
 ### AniList（GraphQL，主用）
 ```
 POST https://graphql.anilist.co
-{"query":"query{Media(search:\"<罗马字/英文名>\",type:ANIME){id title{romaji native english} coverImage{extraLarge} episodes seasons}}"}
+{"query":"query{Media(search:\"<罗马字/英文名>\",type:ANIME){id title{romaji native english} coverImage{extraLarge} episodes season seasonYear}}"}
 ```
 - **搜索必须用罗马字/英文名，拿到结果先核对 title 再用**。中文/日文名直接当搜索词在不同接口表现不一；按记忆猜 id 更危险（AniList 的 id 与作品的对应毫无规律，想当然必翻车）
 - 官方海报：返回的 `coverImage.extraLarge` 直接下载（s4.anilist.co 可达）
@@ -56,7 +56,10 @@ Chromium 排版时无法预知每章起始页。做法：
 - **总览页时间轴**：按首播年份分列、作品名竖排（`writing-mode: vertical-rl`）；airdate 缺失时取 units 里最早的日期兜底——**没有兜底会静默丢列**（实际踩过）
 - 收藏详情表：有 unit_synopses 时切四列（单元/集数/首播/剧情含剧透）；列宽：集数 14mm、首播 26mm，窄了"12 集""2022.10.08"会折行
 
-## 四、pdf-lib 盖章（可选进阶）
+## 四、pdf-lib 盖章（可选进阶，**未随包**）
+
+> 默认交付根本不需要这一节：页脚页码与书签由 `render_pw.js` 的 Chromium `footerTemplate` + `page.pdf({outline:true})` 直接产出。
+> 本节是"每页显示当前作品名"这类进阶需求的实验记录，用之前先 `npm i pdf-lib`（不在 `scripts/package.json` 依赖里），并自行验证字体子集与书签是否被破坏。
 
 - pdf-lib 载入-保存**保留原书签与内链**
 - 页脚跳转链接（低级 API）：

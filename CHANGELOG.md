@@ -1,5 +1,19 @@
 # Changelog
 
+## 1.4.4
+
+- 修复：`fetch_candidates.js` 的 `--pick` 入库入口引用**未定义变量 `COVERS`**，取图必崩（SKILL.md 与 1.4.0 都把它当用法宣传，实际最后一跳是断的）
+- 修复：`evals/check.js` 的封面断言形同虚设——缺失封面只写进 `detail`，而 `detail` 只在断言失败时打印，缺封面的部又不计入分母，于是恒真；`catch { continue }` 还会把解析失败的 research 当成"没这部"。现改为**逐部断言 `anime_build/covers/showNN.jpg` 真实存在**、异常清单无条件打印、解析失败计入失败
+- 修复：`anime_pagemap.js` 未命中书签时设 `exitCode = 3`，会掐断 `npm run pipeline` 的 `&&` 链——第二轮 build/render 不执行、目录页码永远停在占位符 `·`。现改为**告警后继续跑完两轮**，由 `npm run check` 把缺失报成失败（与 pipeline.md「两轮一致」的设计对齐）
+- 修复：`build_anime_html.js` 对 `rating` / `unit_synopses` / `units` / `genres` 直接 `.filter/.find`，调研 JSON 写出非数组（如 `"rating": 8.5`）即抛 `TypeError` 中断整本构建；统一加数组兜底。同时让评分支持 **research 的 `rating`**（此前只读 base，模式 B 自备扫描脚本时评分会静默消失）
+- 修复：`render_pw.js` 的 `browser.newPage()` 在 try/finally 之外（失败漏关浏览器）、msedge 兜底再失败时抛未处理 rejection 绕过友好报错；`contact_sheet.js` 缺 PDF 时抛原始 ENOENT 堆栈（其余脚本都有中文提示）；`export_cards.js` 异常路径不收尾浏览器
+- 修复：`config.json` 缺失或解析失败时 9 个脚本静默回退到 `C:\anime-book`，报错指向错误方向（"未找到 anime_base.json"）；现统一提示「请复制 `config.example.json` 为 `config.json` 并改 root」
+- 文档：`pipeline.md` 的 AniList 查询字段 `seasons` **在 AniList 不存在**（照抄必 HTTP 400，实测应为 `season seasonYear`）；pdf-lib 一节标注「未随包，需自行 `npm i pdf-lib`」并说明默认页脚由 Chromium `footerTemplate` 产出；删掉 pipeline.md 里并不存在的「调研 agent prompt 模板」承诺；`VROOT` 改为说明读 `config.json` 的 `vroot`（不要改脚本）；`pdf:visual-judge` 从「优先路径」降级为「可选增强」；tvly 的 Windows GBK 编码坑与 `PYTHONIOENCODING=utf-8` 写法补入（实测 `--json` 在 GBK 控制台必失败），并在「环境依赖」补上 tvly / curl
+- 文档：`evals/README.md` 修正成品页数（实测 7 页，原文一处写 3-4 页与表格自相矛盾）、fixture 描述（最小样例没有 `unit_synopses`；novel 第二个样例并非"仅必填"）、复现步骤补 Windows 写法
+- 修复：`package-lock.json` 根 `version` 停在 `1.0.0`；CI 新增**版本号 5 处一致**校验，防止 frontmatter 再次漏更
+- 合规：`assets/research.template.json`（"写第一部前先读"的模板）此前整份使用**真实在播作品**的剧情与声优表，与 1.4.3「仓库内零第三方作品素材」不一致；现改用虚构演示作品
+- 仓库：`.gitignore` 修正层级错误（`/_allpages/`、`/_sheets/` 实际在 `anime_build/` 下）并忽略字体子集中间产物 `fonts/wk_*`
+
 ## 1.4.3
 
 - 展示素材合规化：预览图与截图全部改用**虚构演示作品**（evals/fixture + 程序生成的占位封面）重渲，仓库内零第三方作品素材

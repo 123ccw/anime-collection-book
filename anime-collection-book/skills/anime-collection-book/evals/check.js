@@ -5,7 +5,12 @@ const fs = require('fs');
 const path = require('path');
 
 const CFG = (() => {
-  try { return JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'scripts', 'config.json'), 'utf8')); } catch (e) { return {}; }
+  const f = path.join(__dirname, '..', 'scripts', 'config.json');
+  try { return JSON.parse(fs.readFileSync(f, 'utf8')); }
+  catch (e) {
+    console.warn('⚠ 读不到 ' + f + '（' + (e.code || e.message) + '）——请复制 config.example.json 为 config.json 并改 root；本次回退默认值');
+    return {};
+  }
 })();
 const ROOT = CFG.root || 'C:\\anime-book';
 const P = (...a) => path.join(ROOT, ...a);
@@ -39,19 +44,26 @@ catch (e) { t('HTML 已生成', false, e.message); }
 t('HTML 无乱码替换符（U+FFFD）', html.indexOf('\uFFFD') < 0, '存在方块字，检查字体子集是否漏跑');
 t('HTML 含章节结构', html.includes('class="show"'));
 
-// ③.5 封面渲染（声明了封面且文件存在的部，HTML 里必须有对应 <img>——防"漏写 cover 字段/路径错/复制失败"）
+// ③.5 封面（声明了封面且文件存在的部，构建必须把它复制成 anime_build/covers/showNN.jpg 并渲染进 HTML）
 if (base) {
   let covDeclared = 0;
-  const missCov = [];
-  for (const rec of Object.values(base)) {
+  const bad = [];   // 会导致成品缺封面的问题，无条件报出来（不再只在断言失败时才可见）
+  const recs = Object.values(base);
+  for (const [i, rec] of recs.entries()) {
+    const slug = 'show' + String(i + 1).padStart(2, '0');   // 与 build_anime_html.js 的 slug 规则一致
     let r = null;
-    try { r = JSON.parse(fs.readFileSync(P('anime_research', rec.folder + '.json'), 'utf8')); } catch (e) { continue; }
-    if (!r.cover) { missCov.push(rec.folder + '(未声明)'); continue; }
-    if (!fs.existsSync(P('anime_research', r.cover))) { missCov.push(rec.folder + '(文件不存在)'); continue; }
+    try { r = JSON.parse(fs.readFileSync(P('anime_research', rec.folder + '.json'), 'utf8')); }
+    catch (e) { bad.push(rec.folder + '(research JSON 解析失败：' + e.message + ')'); continue; }
+    if (!r.cover) { bad.push(rec.folder + '(未声明 cover)'); continue; }
+    if (!fs.existsSync(P('anime_research', r.cover))) { bad.push(rec.folder + '(cover 文件不存在：' + r.cover + ')'); continue; }
     covDeclared++;
+    // 构建端复制后的目标文件名固定为 .jpg（与源扩展名无关）
+    if (!fs.existsSync(P('anime_build', 'covers', slug + '.jpg'))) bad.push(rec.folder + '(未复制到 anime_build/covers/' + slug + '.jpg)');
   }
+  if (bad.length) console.log('    · 封面异常：' + bad.join('、'));
   const imgCount = (html.match(/<img /g) || []).length;
-  t('封面图已渲染（img 数 ≥ 有效声明数）', imgCount >= covDeclared, 'img=' + imgCount + ' 有效声明=' + covDeclared + (missCov.length ? '；异常：' + missCov.join('、') : ''));
+  t('封面图已渲染（无缺失 + img 数 ≥ 有效声明数）', bad.length === 0 && imgCount >= covDeclared,
+    'img=' + imgCount + ' 有效声明=' + covDeclared + (bad.length ? '；' + bad.join('、') : ''));
 }
 
 // ③.6 统计数字：不应出现首尾相同的年份区间（如 "2015-2015"）

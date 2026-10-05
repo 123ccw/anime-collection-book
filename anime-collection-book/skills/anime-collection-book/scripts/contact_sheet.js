@@ -7,12 +7,20 @@ const { createCanvas, loadImage } = require('@napi-rs/canvas');
 
 // ---- 统一配置（同目录 config.json；缺失时回退默认值）----
 const CFG = (() => {
-  try { return JSON.parse(fs.readFileSync(path.join(__dirname, 'config.json'), 'utf8')); } catch (e) { return {}; }
+  const f = path.join(__dirname, 'config.json');   // 静默回退会让人读到陌生的 root，这里必须出声
+  try { return JSON.parse(fs.readFileSync(f, 'utf8')); }
+  catch (e) {
+    console.warn('⚠ 读不到 ' + f + '（' + (e.code || e.message) + '）——请复制 config.example.json 为 config.json 并改 root；本次回退默认值');
+    return {};
+  }
 })();
 const ROOT = CFG.root || 'C:\\anime-book';   // 项目根（★在 config.json 里改）
 const PDF = path.join(ROOT, 'anime_build', '番剧收藏简介.pdf');
 const TMP = path.join(ROOT, 'anime_build', '_allpages');
 const OUT = path.join(ROOT, 'anime_build', '_sheets');
+if (!fs.existsSync(PDF)) {
+  console.error('未找到 ' + PDF + ' ——请先跑渲染（npm run pipeline，或单独 node render_pw.js）'); process.exit(1);
+}
 
 (async () => {
   // pdfjs-dist 的 .mjs 是 ESM；用动态 import 加载，兼容 Node >=20（require(ESM) 需 20.19+/22.12+）
@@ -55,4 +63,4 @@ const OUT = path.join(ROOT, 'anime_build', '_sheets');
     fs.writeFileSync(path.join(OUT, `sheet_${String(++sheet).padStart(2, '0')}.png`), canvas.toBuffer('image/png'));
   }
   console.log('sheets:', sheet, '->', OUT);
-})();
+})().catch(e => { console.error('联络表生成失败：', String(e && e.message || e).split('\n')[0]); process.exit(1); });

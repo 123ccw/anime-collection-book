@@ -8,7 +8,12 @@ const path = require('path');
 
 // ---- 统一配置（同目录 config.json；缺失时回退默认值）----
 const CFG = (() => {
-  try { return JSON.parse(fs.readFileSync(path.join(__dirname, 'config.json'), 'utf8')); } catch (e) { return {}; }
+  const f = path.join(__dirname, 'config.json');   // 静默回退会让人读到陌生的 root，这里必须出声
+  try { return JSON.parse(fs.readFileSync(f, 'utf8')); }
+  catch (e) {
+    console.warn('⚠ 读不到 ' + f + '（' + (e.code || e.message) + '）——请复制 config.example.json 为 config.json 并改 root；本次回退默认值');
+    return {};
+  }
 })();
 const ROOT = CFG.root || 'C:\\anime-book';   // 项目根
 const VROOT = CFG.vroot || '';               // 模式 B（本机视频库）才填；模式 A 留空
@@ -338,6 +343,8 @@ const CSS = `
 
 // ---- 组装 ----
 (async () => {
+// LLM 产出不可控（"rating": 8.5、"unit_synopses": {} 都出现过），所有数组字段统一兜底
+const arr = v => (Array.isArray(v) ? v : []);
 const shows = Object.values(base);
 let tocRows = '';
 const chapters = [];
@@ -350,9 +357,11 @@ for (const [i, rec] of shows.entries()) {
   const synopsis = r.synopsis || rec.overview || '';
   const src = r.source || '';
   const upd = r.update || '';
-  const genres = (r.genres || rec.genres || []).filter(g => g && !/^(动画|动漫)$/.test(g)).slice(0, 5);
-  const ratings = (rec.rating || []).filter(x => x && x.score > 0).map(x => `${x.site === 'bangumi' ? 'Bangumi' : String(x.site || '').toUpperCase()} <b>${x.score}</b>`).join(' · ');
-  const air0 = fmtDate(rec.airdate || (rec.units || []).map(u => u.airdate).filter(Boolean).sort()[0]);
+  const genres = (arr(r.genres).length ? arr(r.genres) : arr(rec.genres)).filter(g => g && !/^(动画|动漫)$/.test(g)).slice(0, 5);
+  // 评分：research.rating 优先（模式 B 的 base 由使用者自备扫描脚本生成，未必带 rating），回退 base.rating
+  const ratingList = arr(r.rating).length ? arr(r.rating) : arr(rec.rating);
+  const ratings = ratingList.filter(x => x && x.score > 0).map(x => `${x.site === 'bangumi' ? 'Bangumi' : String(x.site || '').toUpperCase()} <b>${x.score}</b>`).join(' · ');
+  const air0 = fmtDate(rec.airdate || arr(rec.units).map(u => u.airdate).filter(Boolean).sort()[0]);
   // 封面优先级：research.cover（官方海报覆盖，相对 anime_research/）> 视频库内封面（模式 B）
   const rcoverRel = r.cover ? String(r.cover).replace(/\//g, path.sep) : '';
   const rcoverAbs = rcoverRel && !rcoverRel.includes('..') ? path.join(rdir, rcoverRel) : '';
@@ -387,10 +396,10 @@ for (const [i, rec] of shows.entries()) {
   const musicPlatHtml = (r.music || r.platforms)
     ? `<h2>${L.hMusic}</h2><div class="pcard">${r.music ? `<div class="mline"><span class="mk">${L.mkMusic}</span><span class="mv">${esc(r.music)}</span></div>` : ''}${r.platforms ? `<div class="mline"><span class="mk">${L.mkPlat}</span><span class="mv">${esc(r.platforms)}</span></div>` : ''}</div>`
     : '';
-  const unitSops = r.unit_synopses || [];
+  const unitSops = arr(r.unit_synopses);
   const sopOf = (name) => { const hit = unitSops.find((u) => u.name === name); return hit ? hit.text : ''; };
   // 单元名列宽按最长名字自适应（ASCII 半宽折算；短名不浪费宽，长名不硬折）
-  const unitsAll = (rec.units || []).filter(u => (u.eps || 0) > 0);
+  const unitsAll = arr(rec.units).filter(u => (u.eps || 0) > 0);
   const vLen = s => String(s).replace(/[\x21-\x7E]/g, 'i').length;
   const nameW = Math.min(48, Math.max(26, Math.ceil(Math.max(0, ...unitsAll.map(u => vLen(u.name))) * 3.3) + 7));
   const unitRows = unitsAll

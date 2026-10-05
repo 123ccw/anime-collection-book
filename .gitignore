@@ -2,14 +2,15 @@
 node_modules/
 
 # 使用 skill 时项目根产生的目录（仓库本身不含这些；锚定根目录，勿误伤 examples/）
+# anime_build/ 之下才是 _allpages/ _sheets/ _cards/ _gallery/ 等中间产物，无需单列
 /anime_build/
 /anime_research/
 /anime_base.json
 /names.txt
 /fonts/*.ttf
 /fonts/*.woff2
-/_allpages/
-/_sheets/
+# 字体子集中间产物（wk_chars.txt；wk-sub-*.woff2 已被上一行覆盖）
+/fonts/wk_*
 
 # 本机配置：含使用者的项目路径/领域/书名，绝不入库（模板见同目录 config.example.json）
 config.json
