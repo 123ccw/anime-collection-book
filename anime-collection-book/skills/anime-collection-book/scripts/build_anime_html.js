@@ -12,7 +12,19 @@ const CFG = (() => {
 })();
 const ROOT = CFG.root || 'C:\\anime-book';   // 项目根
 const VROOT = CFG.vroot || '';               // 模式 B（本机视频库）才填；模式 A 留空
-const base = JSON.parse(fs.readFileSync(path.join(ROOT, 'anime_base.json'), 'utf8'));
+const BASE_FILE = path.join(ROOT, 'anime_base.json');
+if (!fs.existsSync(BASE_FILE)) {
+  console.error('未找到 ' + BASE_FILE + ' ——模式 A 请先跑 npm run base；或检查 config.json 的 root 是否指向项目根'); process.exit(1);
+}
+const base = JSON.parse(fs.readFileSync(BASE_FILE, 'utf8'));
+
+// 数据归一化：调研 JSON 是 LLM 产出的不可信输入，eps/airdate 可能是字符串——
+// 字符串 eps 会让求和变拼接（"012"），字符串时间戳会让 new Date 解析成 Invalid Date 直接抛错
+const toMs = v => { if (v == null || v === '') return null; const n = Number(v); if (Number.isFinite(n) && n > 0) return n; const p = Date.parse(v); return Number.isFinite(p) ? p : null; };
+for (const s of Object.values(base)) {
+  s.airdate = toMs(s.airdate);
+  s.units = (s.units || []).map(u => ({ ...u, eps: Number(u.eps) || 0, airdate: toMs(u.airdate) }));
+}
 
 // 目录页码：_pagemap.json 由 anime_pagemap.js 从上一轮渲染的 PDF 书签导出；两轮构建布局一致
 let PAGE_MAP = {};
@@ -44,7 +56,11 @@ const ACCENTS = {
 const DEFAULT_ACCENT = '#4f46e5';
 
 // ---- 文楷子集 data URI（collect_fonts.js 生成） ----
-const WK_REG = fs.readFileSync(path.join(ROOT, 'fonts', 'wk-sub-regular.woff2')).toString('base64');
+const FONT_R = path.join(ROOT, 'fonts', 'wk-sub-regular.woff2');
+if (!fs.existsSync(FONT_R)) {
+  console.error('未找到 ' + FONT_R + ' ——请先跑字体子集（npm run pipeline，或单独 node collect_fonts.js）'); process.exit(1);
+}
+const WK_REG = fs.readFileSync(FONT_R).toString('base64');
 const WK_MED = fs.readFileSync(path.join(ROOT, 'fonts', 'wk-sub-medium.woff2')).toString('base64');
 
 // ---- 颜色工具 ----
@@ -53,9 +69,10 @@ function rgba(h, a) { const [r, g, b] = hexRgb(h); return `rgba(${r},${g},${b},$
 function shade(h, f) { const [r, g, b] = hexRgb(h); return `#${[r, g, b].map(v => Math.round(v * f).toString(16).padStart(2, '0')).join('')}`; }
 function varsFor(ac) {
   return `--ac:${ac};--ac-dark:${shade(ac, .72)};--ac-ink:${shade(ac, .5)};--ac-tint:${rgba(ac, .07)};` +
-    `--ac-tint2:${rgba(ac, .13)};--ac-faint:${rgba(ac, .22)};--ac-rule:${rgba(ac, .3)};`;
+    `--ac-tint2:${rgba(ac, .13)};--ac-faint:${rgba(ac, .22)};`;
 }
-function esc(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+// 转义覆盖元素内容与双引号属性位（title 等字段将来挪进属性也不会破）
+function esc(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
 
 // production 文本 → { staff:[[键,值]], cast:[[角色,CV]] }（失败时返回 null，调用处降级原文本渲染）
 function splitProduction(s) {

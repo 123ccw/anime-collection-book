@@ -37,16 +37,19 @@ for (const name of names) {
   }
   if (!hit) { missing.push(name); continue; }
   const r = JSON.parse(fs.readFileSync(hit, 'utf8'));
+  // 归一化：LLM 调研 JSON 的 eps/airdate 可能是字符串（"12" 会让构建端求和变拼接）
+  const toMs = v => { if (v == null || v === '') return null; const n = Number(v); if (Number.isFinite(n) && n > 0) return n; const p = Date.parse(v); return Number.isFinite(p) ? p : null; };
+  const units = (r.units || []).map(u => ({ ...u, eps: Number(u.eps) || 0, airdate: toMs(u.airdate) }));
   base[r.folder || name] = {
     title: r.title_zh || name,
     folder: r.folder || name,
-    airdate: (r.units || []).map(u => u.airdate).find(Boolean) || null,
+    airdate: units.map(u => u.airdate).find(Boolean) || null,
     titles: r.title_jp ? [r.title_jp] : [],
     genres: r.genres || [],
     overview: r.synopsis || '',
     rating: r.rating || [],
     cover: 'cover.jpeg', // 占位：模式 A 无视频库，实际封面走 research.cover 覆盖
-    units: r.units || [],
+    units,
   };
 }
 fs.writeFileSync(path.join(ROOT, 'anime_base.json'), JSON.stringify(base, null, 2), 'utf8');

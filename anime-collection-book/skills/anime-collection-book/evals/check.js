@@ -70,5 +70,20 @@ try {
   t('页码映射条目数 = 收录部数', Object.keys(map).length === n, Object.keys(map).length + ' / ' + n);
 } catch (e) { t('页码映射存在且可解析', false, e.message); }
 
+// ⑥ 目录页码 = 最终书签页码（两轮渲染稳定性的机器断言；目录印的是第 1 轮的页码，_pagemap.json 是第 2 轮实测）
+try {
+  const map = JSON.parse(fs.readFileSync(P('anime_build', '_pagemap.json'), 'utf8'));
+  const unesc = s => s.replace(/&quot;/g, '"').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
+  const rows = [...html.matchAll(/<a href="#show\d+">([^<]+)<\/a>[\s\S]*?<span class="pg">([^<]*)<\/span><\/li>/g)];
+  const bad = [];
+  for (const [, tHtml, pg] of rows) {
+    const key = unesc(tHtml);
+    const want = map[key] != null ? String(map[key]).padStart(3, '0') : '·';
+    if (pg !== want) bad.push(key + '：目录 ' + pg + ' vs 实际 ' + want);
+  }
+  t('目录页码与最终书签一致', rows.length > 0 && bad.length === 0,
+    rows.length === 0 ? '未从 HTML 解析到目录行（HTML 结构变了？）' : bad.slice(0, 3).join('；'));
+} catch (e) { /* pagemap 缺失时 ⑤ 已报错，不重复计失败 */ }
+
 console.log('\n结果：' + pass + ' 通过，' + fail + ' 失败' + (fail ? '（回到 SKILL.md 的坑位清单排查）' : ''));
 process.exit(fail ? 1 : 0);
