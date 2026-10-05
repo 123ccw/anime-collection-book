@@ -3,6 +3,7 @@
 // 用法: node render_pw.js
 const fs = require('fs');
 const path = require('path');
+const { pathToFileURL } = require('url');
 const { chromium } = require('playwright');
 
 // ---- 统一配置（同目录 config.json；缺失时回退默认值）----
@@ -29,7 +30,7 @@ function esc(s) { return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(
   const page = await browser.newPage();
   const htmlPath = path.join(SRC, NAME);
   try {
-    await page.goto('file:///' + htmlPath.replace(/\\/g, '/'), { waitUntil: 'load', timeout: 60000 });
+    await page.goto(pathToFileURL(htmlPath).href, { waitUntil: 'load', timeout: 60000 });
     await page.evaluate(() => document.fonts.ready); // 等 @font-face 就绪，避免字体未加载就出 PDF
     await page.waitForTimeout(300);
     await page.pdf({

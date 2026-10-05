@@ -12,7 +12,8 @@ const ROOT = CFG.root || 'C:\\anime-book';   // 项目根（★在 config.json �
 const PDF = path.join(ROOT, 'anime_build', '番剧收藏简介.pdf');
 
 (async () => {
-  const pdfjs = require('pdfjs-dist/legacy/build/pdf.mjs');
+  // pdfjs-dist 的 .mjs 是 ESM；用动态 import 加载，兼容 Node >=20（require(ESM) 需 20.19+/22.12+）
+  const pdfjs = await import('pdfjs-dist/legacy/build/pdf.mjs');
   const data = new Uint8Array(fs.readFileSync(PDF));
   const doc = await pdfjs.getDocument({ data, useSystemFonts: true }).promise;
   const outline = await doc.getOutline();

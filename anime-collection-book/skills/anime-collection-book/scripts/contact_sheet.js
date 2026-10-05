@@ -15,7 +15,8 @@ const TMP = path.join(ROOT, 'anime_build', '_allpages');
 const OUT = path.join(ROOT, 'anime_build', '_sheets');
 
 (async () => {
-  const pdfjs = require('pdfjs-dist/legacy/build/pdf.mjs');
+  // pdfjs-dist 的 .mjs 是 ESM；用动态 import 加载，兼容 Node >=20（require(ESM) 需 20.19+/22.12+）
+  const pdfjs = await import('pdfjs-dist/legacy/build/pdf.mjs');
   fs.rmSync(TMP, { recursive: true, force: true });
   fs.rmSync(OUT, { recursive: true, force: true });
   fs.mkdirSync(TMP, { recursive: true });

@@ -81,7 +81,8 @@ function splitProduction(s) {
   return { staff, cast };
 }
 function stClass(s) {
-  if (/已完结|完结/.test(s)) return 'std-done';
+  // 「已完结 / 完结 / 完结篇」= 灰；但「未完结」不算（负向后顾排除）
+  if (/(?<!未)完结/.test(s)) return 'std-done';
   if (/放送中/.test(s)) return 'std-air';
   return 'std-soon';
 }
@@ -89,6 +90,8 @@ function stClass(s) {
 const fmtDate = ts => ts ? new Date(ts).toISOString().slice(0, 10).replace(/-/g, '.') : '';
 const totalEps = r => (r.units || []).reduce((s, u) => s + (u.eps || 0), 0);
 const unitCount = r => (r.units || []).filter(u => (u.eps || 0) > 0).length;
+// 当前年月（UTC 口径，与 fmtDate 一致）——总览刊头 + 各章刊头共用，避免年份写死
+const NOW = (() => { const d = new Date(); return d.getUTCFullYear() + '.' + String(d.getUTCMonth() + 1).padStart(2, '0'); })();
 
 // ---- 封面副本：research.cover（官方海报覆盖）优先，否则取视频库内封面（模式 B） ----
 const OUT = path.join(ROOT, 'anime_build');
@@ -227,13 +230,13 @@ shows.forEach((rec, i) => {
   const src = r.source || '';
   const upd = r.update || '';
   const genres = (r.genres || rec.genres || []).filter(g => g && !/^(动画|动漫)$/.test(g)).slice(0, 5);
-  const ratings = (rec.rating || []).filter(x => x.score > 0).map(x => `${x.site === 'bangumi' ? 'Bangumi' : x.site.toUpperCase()} <b>${x.score}</b>`).join(' · ');
+  const ratings = (rec.rating || []).filter(x => x && x.score > 0).map(x => `${x.site === 'bangumi' ? 'Bangumi' : String(x.site || '').toUpperCase()} <b>${x.score}</b>`).join(' · ');
   const air0 = fmtDate(rec.airdate || (rec.units || []).map(u => u.airdate).filter(Boolean).sort()[0]);
   // 封面优先级：research.cover（官方海报覆盖，相对 anime_research/）> 视频库内封面（模式 B）
   const rcoverRel = r.cover ? String(r.cover).replace(/\//g, path.sep) : '';
   const rcoverAbs = rcoverRel && !rcoverRel.includes('..') ? path.join(rdir, rcoverRel) : '';
   const cover = (rcoverRel && fs.existsSync(rcoverAbs))
-    ? (() => { const d = path.join(coverDir, slug + '.jpg'); try { fs.copyFileSync(rcoverAbs, d); return 'covers/' + slug + '.jpg'; } catch (e) { return ''; } })()
+    ? (() => { const d = path.join(coverDir, slug + '.jpg'); try { fs.copyFileSync(rcoverAbs, d); return 'covers/' + slug + '.jpg'; } catch (e) { console.warn('⚠ 封面复制失败（' + rec.folder + '）:', e.message); return ''; } })()
     : localCoverSrc(rec, slug);
 
   const art = cover ? `<div class="art"><img src="${cover}" alt=""></div>` : `<div class="art"></div>`;
@@ -263,7 +266,7 @@ shows.forEach((rec, i) => {
 
   chapters.push(`
   <div class="show" id="show${String(i + 1).padStart(2, '0')}" style="${varsFor(ac)}">
-    <div class="mast"><div class="m1">番剧收藏 · ${String(i + 1).padStart(2, '0')}</div><div class="m2">ANIME COLLECTION · 2026</div></div>
+    <div class="mast"><div class="m1">番剧收藏 · ${String(i + 1).padStart(2, '0')}</div><div class="m2">ANIME COLLECTION · ${NOW}</div></div>
     <div class="heroline">
       ${art}
       <div class="head">
@@ -297,9 +300,9 @@ const yearSpan = (() => {
   // 收录年份跨度 = 全册所有单元（含后续季/OVA）最早与最晚的年份；仅一年时显示单值，避免 "2015-2015"
   const ys = [];
   for (const s of shows) {
-    for (const u of (s.units || [])) if (u.airdate) ys.push(new Date(u.airdate).getFullYear());
+    for (const u of (s.units || [])) if (u.airdate) ys.push(new Date(u.airdate).getUTCFullYear());
     const y0 = s.airdate || ((s.units || []).map(u => u.airdate).filter(Boolean))[0];
-    if (y0) ys.push(new Date(y0).getFullYear());
+    if (y0) ys.push(new Date(y0).getUTCFullYear());
   }
   ys.sort((a, b) => a - b);
   if (!ys.length) return '';
@@ -310,7 +313,7 @@ const tlHtml = (() => {
   const byYear = {};
   shows.forEach(s => {
     const y0 = s.airdate || (s.units || []).map(u => u.airdate).filter(Boolean).sort()[0];
-    const y = y0 ? new Date(y0).getFullYear() : null;
+    const y = y0 ? new Date(y0).getUTCFullYear() : null;
     if (!y) return;
     const rj = research[s.folder] || {};
     const nm = rj.title_zh || s.title || s.folder;
@@ -320,7 +323,6 @@ const tlHtml = (() => {
     `<div class="ycol"><div class="yname">${y}</div>${byYear[y].map(n => `<div class="yitem">${esc(n.length > 9 ? n.slice(0, 9) + '…' : n)}</div>`).join('')}</div>`
   ).join('');
 })();
-const NOW = (() => { const d = new Date(); return d.getFullYear() + '.' + String(d.getMonth() + 1).padStart(2, '0'); })();
 const html = `<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8">
 <meta name="accent" content="#4f46e5">
 <title>番剧收藏简介</title><style>${CSS}</style></head><body><div class="page">

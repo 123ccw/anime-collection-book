@@ -1,11 +1,11 @@
 {
   "name": "anime-collection-book",
-  "owner": { "name": "anime-collection-book" },
+  "owner": { "name": "123ccw" },
   "plugins": [
     {
       "name": "anime-collection-book",
       "source": "./anime-collection-book",
-      "version": "1.0.0",
+      "version": "1.0.1",
       "description": "Turn a list of anime names (or a local video library) into a magazine-style PDF collection book: official covers, synopses, staff & cast, watch order, per-season spoiler guides, bookmarks and page footers",
       "displayName": "Anime Collection Book",
       "displayName_i18n": { "zh-CN": "番剧收藏册" },

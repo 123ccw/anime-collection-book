@@ -72,7 +72,7 @@
 ## 质检铁律
 
 封面必须让 agent 亲眼看（防张冠李戴）；查不到的信息写"未核实"，禁止编造；发布前全页目检。
-完整踩坑清单（13 条）与数据源用法见 [`references/pipeline.md`](references/pipeline.md)。
+完整踩坑清单（13 条）与数据源用法见 [`references/pipeline.md`](anime-collection-book/skills/anime-collection-book/references/pipeline.md)。
 
 ## 许可
 
