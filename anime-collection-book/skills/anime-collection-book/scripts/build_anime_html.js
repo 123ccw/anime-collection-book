@@ -358,13 +358,23 @@ for (const [i, rec] of shows.entries()) {
     ? (() => { const d = path.join(coverDir, slug + '.jpg'); try { fs.copyFileSync(rcoverAbs, d); return 'covers/' + slug + '.jpg'; } catch (e) { console.warn('⚠ 封面复制失败（' + rec.folder + '）:', e.message); return ''; } })()
     : localCoverSrc(rec, slug);
 
+  // 章节肖像：research.portrait（干净立绘，相对 anime_research/）优先——封面要"有戏"，肖像要"干净"，两者审美术不同
+  const rportRel = r.portrait ? String(r.portrait).replace(/\//g, path.sep) : '';
+  const rportAbs = rportRel && !rportRel.includes('..') ? path.join(rdir, rportRel) : '';
+  let portrait = cover;
+  if (rportRel && fs.existsSync(rportAbs)) {
+    const d = path.join(coverDir, slug + '-p.jpg');
+    try { fs.copyFileSync(rportAbs, d); portrait = 'covers/' + slug + '-p.jpg'; }
+    catch (e) { console.warn('⚠ 肖像复制失败（' + rec.folder + '）:', e.message); }
+  }
+
   // 主题色：research.accent（手动）> 封面自动取色 > DEFAULT_ACCENT
   let ac = DEFAULT_ACCENT, acSrc = '默认';
   if (r.accent && /^#[0-9a-fA-F]{6}$/.test(String(r.accent))) { ac = String(r.accent).toLowerCase(); acSrc = '手动指定'; }
   else if (cover) { const ex = await extractAccent(path.join(coverDir, slug + '.jpg')); if (ex) { ac = ex; acSrc = '封面取色'; } }
   console.log(`主题色 ${rec.folder} -> ${ac}（${acSrc}）`);
 
-  const art = cover ? `<div class="art"><img src="${cover}" alt=""></div>` : `<div class="art"></div>`;
+  const art = portrait ? `<div class="art"><img src="${portrait}" alt=""></div>` : `<div class="art"></div>`;
   // 制作与声优：结构化渲染（解析失败降级原文本）
   const prod = r.production ? splitProduction(r.production) : null;
   const prodHtml = r.production
