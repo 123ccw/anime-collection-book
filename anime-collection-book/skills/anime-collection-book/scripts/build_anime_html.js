@@ -46,14 +46,38 @@ if (fs.existsSync(rdir)) {
   }
 }
 
-// ---- 每部主题色（示例条目，改成你自己的作品名→色值；建议从该作官方主视觉里取色，和封面同调；不在表里的作品用 DEFAULT_ACCENT） ----
-const ACCENTS = {
-  '葬送的芙莉莲': '#6d28d9',
-  '孤独摇滚！': '#e0407e',
-  '夏日重现': '#0e7490',
-  '一拳超人': '#eab308',
-};
 const DEFAULT_ACCENT = '#4f46e5';
+
+// ---- 主题色自动提取：取封面主导色相（去黑白灰/低饱和，饱和度加权），S/L 固定保证全书各章明度一致 ----
+function hslHex(h, s, l) {
+  const f = n => { const k = (n + h / 30) % 12; const a = s * Math.min(l, 1 - l);
+    const v = l - a * Math.max(-1, Math.min(k - 3, Math.min(9 - k, 1)));
+    return Math.round(255 * v).toString(16).padStart(2, '0'); };
+  return '#' + f(0) + f(8) + f(4);
+}
+async function extractAccent(imgPath) {
+  try {
+    const { createCanvas, loadImage } = require('@napi-rs/canvas');
+    const img = await loadImage(imgPath);
+    const S = 64, c = createCanvas(S, S), ctx = c.getContext('2d');
+    ctx.drawImage(img, 0, 0, S, S);
+    const d = ctx.getImageData(0, 0, S, S).data;
+    const wHue = new Array(36).fill(0); let tot = 0, satSum = 0;
+    for (let p = 0; p < d.length; p += 4) {
+      const r = d[p], g = d[p + 1], b = d[p + 2];
+      const mx = Math.max(r, g, b), mn = Math.min(r, g, b), df = mx - mn;
+      const lum = (mx + mn) / 510, sat = mx ? df / mx : 0;
+      if (lum < 0.14 || lum > 0.9 || sat < 0.2) continue;
+      let hh = mx === r ? ((g - b) / df) % 6 : mx === g ? (b - r) / df + 2 : (r - g) / df + 4;
+      hh = Math.floor((((hh * 60) + 360) % 360) / 10);
+      const w = sat * sat; wHue[hh] += w; satSum += w * sat; tot += w;
+    }
+    if (!tot) return '';
+    let best = 0; for (let k = 1; k < 36; k++) if (wHue[k] > wHue[best]) best = k;
+    const avgSat = satSum / tot;
+    return hslHex(best * 10 + 5, Math.min(0.72, Math.max(0.45, avgSat * 1.15)), 0.42);
+  } catch (e) { console.warn('⚠ 封面取色失败（' + imgPath + '）:', e.message); return ''; }
+}
 
 // ---- 文楷子集 data URI（collect_fonts.js 生成） ----
 const FONT_R = path.join(ROOT, 'fonts', 'wk-sub-regular.woff2');
@@ -231,16 +255,37 @@ const CSS = `
   .yitem { writing-mode: vertical-rl; font-size: 7.6pt; color: #3c3c46; line-height: 1.15; margin: 1mm 0 0; padding: 0; }
   .yitem::before { content: ''; display: block; width: 1.6mm; height: 1.6mm; border-radius: 50%;
                    background: #4f46e5; margin: 0 auto 1mm; }
+
+  /* ===== 台词卡（章节记忆点） ===== */
+  .quote { margin: 4mm 12mm 1mm; text-align: center; break-inside: avoid; }
+  .quote .qm { font-family: "LXGW WenKai"; color: var(--ac); font-size: 15pt; line-height: 1; }
+  .quote .qt { font-family: "LXGW WenKai"; font-weight: 500; font-size: 12.5pt; color: var(--ac-ink); line-height: 1.65; margin: 1mm 0 1.2mm; }
+  .quote .qs { font-size: 8.5pt; color: #8b8b96; letter-spacing: .12em; }
+
+  /* ===== 数说收藏页 ===== */
+  .alm h2 { margin-top: 2mm; }
+  .alm-pg { break-before: page; }
+  .alm-grid { display: flex; flex-wrap: wrap; gap: 4.5mm; margin: 4mm 0 0; }
+  .alm-grid .st2 { flex: 1 1 44%; background: var(--ac-tint); border-radius: 3mm; padding: 5.5mm 6.5mm; break-inside: avoid; }
+  .alm-grid .lb { font-size: 9pt; letter-spacing: .18em; color: #6b6b76; }
+  .alm-grid .b { font-family: "LXGW WenKai"; font-weight: 700; font-size: 23pt; color: var(--bc, var(--ac-dark)); line-height: 1.3; margin-top: 1.5mm; }
+  .alm-grid .sub { font-size: 8.5pt; color: #8b8b96; margin-top: 1mm; }
+  .brow { display: flex; align-items: center; gap: 2.5mm; margin: 1.8mm 0; font-size: 8.5pt; color: #3c3c46; }
+  .brow span { flex: 0 0 15mm; font-variant-numeric: tabular-nums; }
+  .brow b { flex: 0 0 6mm; text-align: right; color: var(--ac-dark); font-variant-numeric: tabular-nums; }
+  .bar { flex: 1; height: 2.6mm; background: rgba(0,0,0,.07); border-radius: 1.6mm; overflow: hidden; }
+  .bar i { display: block; height: 100%; background: var(--ac); border-radius: 1.6mm; }
 `;
 
 // ---- 组装 ----
+(async () => {
 const shows = Object.values(base);
 let tocRows = '';
 const chapters = [];
-shows.forEach((rec, i) => {
+const showMeta = [];
+for (const [i, rec] of shows.entries()) {
   const r = research[rec.folder] || {};
   const slug = 'show' + String(i + 1).padStart(2, '0');
-  const ac = ACCENTS[rec.folder] || DEFAULT_ACCENT;
   const title = r.title_zh || rec.title || rec.folder;
   const titleJp = r.title_jp || (rec.titles && rec.titles[0]) || '';
   const synopsis = r.synopsis || rec.overview || '';
@@ -255,6 +300,13 @@ shows.forEach((rec, i) => {
   const cover = (rcoverRel && fs.existsSync(rcoverAbs))
     ? (() => { const d = path.join(coverDir, slug + '.jpg'); try { fs.copyFileSync(rcoverAbs, d); return 'covers/' + slug + '.jpg'; } catch (e) { console.warn('⚠ 封面复制失败（' + rec.folder + '）:', e.message); return ''; } })()
     : localCoverSrc(rec, slug);
+
+  // 主题色：research.accent（手动）> 封面自动取色 > DEFAULT_ACCENT
+  let ac = DEFAULT_ACCENT, acSrc = '默认';
+  if (r.accent && /^#[0-9a-fA-F]{6}$/.test(String(r.accent))) { ac = String(r.accent).toLowerCase(); acSrc = '手动指定'; }
+  else if (cover) { const ex = await extractAccent(path.join(coverDir, slug + '.jpg')); if (ex) { ac = ex; acSrc = '封面取色'; } }
+  console.log(`主题色 ${rec.folder} -> ${ac}（${acSrc}）`);
+  showMeta.push({ title, ac, total: totalEps(rec) });
 
   const art = cover ? `<div class="art"><img src="${cover}" alt=""></div>` : `<div class="art"></div>`;
   // 制作与声优：结构化渲染（解析失败降级原文本）
@@ -281,6 +333,11 @@ shows.forEach((rec, i) => {
     })
     .join('');
 
+  const q = typeof r.quote === 'string' ? { text: r.quote } : (r.quote || null);
+  const quoteHtml = (q && q.text)
+    ? `<div class="quote"><div class="qm">「</div><div class="qt">${esc(q.text)}</div>${q.speaker ? `<div class="qs">—— ${esc(q.speaker)}</div>` : ''}</div>`
+    : '';
+
   chapters.push(`
   <div class="show" id="show${String(i + 1).padStart(2, '0')}" style="${varsFor(ac)}">
     <div class="mast"><div class="m1">番剧收藏 · ${String(i + 1).padStart(2, '0')}</div><div class="m2">ANIME COLLECTION · ${NOW}</div></div>
@@ -295,6 +352,7 @@ shows.forEach((rec, i) => {
         ${r.status ? `<div class="score"><span class="std ${stClass(r.status)}">${esc(r.status)}</span></div>` : ''}
       </div>
     </div>
+    ${quoteHtml}
     ${synopsis ? `<h2>剧情简介<span class="sp">剧透注意</span></h2><p class="syn">${esc(synopsis)}</p>` : ''}
     ${r.production ? `<h2>制作与声优</h2>${prodHtml}` : ''}
     ${musicPlatHtml}
@@ -309,7 +367,7 @@ shows.forEach((rec, i) => {
   </div>`);
 
   tocRows += `<li><a href="#show${String(i + 1).padStart(2, '0')}">${esc(title)}</a> <span class="n-ep">${totalEps(rec)} 集</span><span class="pg">${pgOf(title)}</span></li>`;
-});
+}
 
 const grand = shows.reduce((s, r) => s + totalEps(r), 0);
 const grandUnits = shows.reduce((s, r) => s + unitCount(r), 0);
@@ -325,6 +383,38 @@ const yearSpan = (() => {
   if (!ys.length) return '';
   return ys[0] === ys[ys.length - 1] ? String(ys[0]) : `${ys[0]}-${ys[ys.length - 1]}`;
 })();
+// ---- 数说收藏页（Wrapped 式大数字统计；语义块用对应作品的主题色） ----
+const almHtml = (() => {
+  const years = shows.flatMap(s => (s.units || []).map(u => u.airdate).filter(Boolean)).map(ts => new Date(ts).getUTCFullYear()).sort((a, b) => a - b);
+  const decades = {};
+  years.forEach(y => { const d = Math.floor(y / 10) * 10; decades[d] = (decades[d] || 0) + 1; });
+  const decKeys = Object.keys(decades).sort();
+  const decMax = Math.max(1, ...decKeys.map(k => decades[k]));
+  const genreCnt = {};
+  for (const s of shows) for (const g of ((research[s.folder] || {}).genres || s.genres || [])) genreCnt[g] = (genreCnt[g] || 0) + 1;
+  const topGenre = Object.entries(genreCnt).sort((a, b) => b[1] - a[1])[0];
+  const longest = showMeta.slice().sort((a, b) => b.total - a.total)[0];
+  const doneCnt = shows.filter(s => stClass((research[s.folder] || {}).status || '') === 'std-done').length;
+  const airCnt = shows.filter(s => stClass((research[s.folder] || {}).status || '') === 'std-air').length;
+  if (!shows.length) return '';
+  const span = years.length ? (years[0] === years[years.length - 1] ? String(years[0]) : `${years[0]} – ${years[years.length - 1]}`) : '—';
+  const spanYears = years.length ? (years[years.length - 1] - years[0] + 1) + ' 年' : '—';
+  const block = (lb, big, sub, bc) => `<div class="st2"${bc ? ` style="--bc:${bc}"` : ''}><div class="lb">${esc(lb)}</div><div class="b">${big}</div><div class="sub">${esc(sub)}</div></div>`;
+  const bars = decKeys.map(k => `<div class="brow"><span>${k}s</span><div class="bar"><i style="width:${Math.round(decades[k] / decMax * 100)}%"></i></div><b>${decades[k]}</b></div>`).join('');
+  return `
+  <div class="alm">
+    <h2>数说收藏<span class="sp">DATA NOTES</span></h2>
+    <div class="alm-grid">
+      ${block('收藏总量', `${grand} 集`, `${shows.length} 部 · ${grandUnits} 个单元`)}
+      ${block('收录跨度', spanYears, span)}
+      ${longest && longest.total ? block('最长系列', `${longest.total} 集`, longest.title, longest.ac) : ''}
+      ${topGenre ? block('最高频类型', `「${topGenre[0]}」`, `在 ${topGenre[1]} 部作品中出现`) : ''}
+      ${decKeys.length ? `<div class="st2"><div class="lb">年代分布</div><div style="margin-top:2mm">${bars}</div></div>` : ''}
+      ${block('完结 / 放送中', `${doneCnt} / ${airCnt}`, airCnt ? `${airCnt} 部正在放送` : (doneCnt === shows.length ? '收录作品全部完结' : '以各章状态徽章为准'))}
+    </div>
+  </div>`;
+})();
+const almPage = almHtml ? `<div class="page alm-pg" style="${varsFor(DEFAULT_ACCENT)}">${almHtml}</div>` : '';
 // 时间轴：按首播年份分列（竖排名）
 const tlHtml = (() => {
   const byYear = {};
@@ -360,6 +450,7 @@ const html = `<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8">
     <ol>${tocRows}</ol>
   </div>
 </div>
+${almPage}
 <div class="page">
 ${chapters.join('\n')}
 </div>
@@ -369,3 +460,4 @@ fs.writeFileSync(path.join(OUT, '番剧收藏简介.html'), html, 'utf8');
 const missing = shows.filter(s => !research[s.folder]).map(s => s.folder);
 console.log(`built ${shows.length} chapters -> anime_build/番剧收藏简介.html`);
 if (missing.length) console.log('no research for:', missing.join('、'));
+})().catch(e => { console.error('构建失败：', e.message); process.exit(1); });

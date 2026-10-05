@@ -17,6 +17,8 @@
   "music": "【示例】OP「勇者」／ED「Anytime Anywhere」（第1期）；OP「晴る」（第2期，实际以查证为准）",
   "platforms": "【示例】中国大陆：B站；国际：Crunchyroll（查不到就不写这个字段）",
   "status": "【示例】第 2 期 2026-01 放送（写最新状态：已完结 / 放送中 / 制作决定 / 上映在即）",
+  "quote": { "text": "【示例】『魔法，是想让谁看见才施展的。』——选一句最能代表作品气质的台词，避开关键剧透；不需要就整段省略", "speaker": "芙莉莲【示例】" },
+  "accent": "#6d28d9",
   "rating": [{ "site": "bangumi", "score": 9.2 }],
   "cover": "covers/葬送的芙莉莲.jpg"
 }

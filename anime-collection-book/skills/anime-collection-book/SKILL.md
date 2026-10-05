@@ -4,7 +4,7 @@ license: MIT
 compatibility: Requires Node.js >=20 with npm, Python 3 + fonttools/brotli (font subsetting), Playwright Chromium (or system Edge), and internet access for online research.
 metadata:
   author: 123ccw
-  version: "1.0.2"
+  version: "1.0.3"
 description: Use when 用户想把番剧/动画做成"收藏册/图鉴/纪念册/简介 PDF"——可只给片名清单（清单也可来自对话上文或文件，无需本地视频文件），也可基于本机视频收藏库；TV/剧场版/OVA 及 Galgame 视觉小说的同类整理均适用。产出杂志风 PDF：官方海报、无剧透简介（剧透独立成逐季表）、制作声优、主题歌与观看平台、补番顺序、可点击目录与书签页脚。不用于：非影音内容的整理（如游戏攻略）、追番进度管理（这不是 tracker）、视频文件整理/重命名/媒体库刮削（Jellyfin/Emby/Plex 场景）、对已有 PDF 的格式转换。
 ---
 
@@ -70,6 +70,8 @@ description: Use when 用户想把番剧/动画做成"收藏册/图鉴/纪念册
   "music": "OP「曲名」（演唱）／ED「曲名」（演唱）（第1期）；OP「曲名」／ED「曲名」（第2期）",
   "platforms": "中国大陆：B站、爱奇艺；国际：Crunchyroll（只在有据可查时写）",
   "status": "第 3 期放送中；或 已完结 / 第 2 期制作决定（档期待定） / 剧场版 2026-10-16 上映在即",
+  "quote": {"text": "代表作品气质的一句台词（避开关键剧透；不需要可省略）", "speaker": "说话角色"},
+  "accent": "#e0407e",
   "units": [{"name": "第一季", "eps": 12, "airdate": 1700000000000}],
   "unit_synopses": [{"name": "第一季", "text": "100-250 字剧透简介：主线→转折→结局落点"}],
   "rating": [{"site": "bangumi", "score": 7.9}],
@@ -80,6 +82,8 @@ description: Use when 用户想把番剧/动画做成"收藏册/图鉴/纪念册
 - `rating`：可选，有就渲染成评分行（Bangumi/TMDB 等）
 - `unit_synopses[].name` 必须与 `units[].name` 逐字一致
 - `music` / `platforms` / `status`：可选，缺失自动隐藏对应板块；**status 决定标题区徽章颜色**（含"已完结"=灰、"放送中"=绿、其它=琥珀）
+- `quote`：可选，有就渲染成章节台词卡（大字居中记忆点）；直接给字符串或 `{text, speaker}` 结构均可
+- `accent`：可选，6 位 hex，手动指定主题色；**缺省自动从该部封面提取主色**（全书明度统一），仅取色不满意时覆盖
 - `production` 请尽量按"键：值；键：值……主要声优：角色·CV、…"格式写——渲染端会自动拆成结构化表格（格式不符则降级为整段文本，不会出错）
 - 完整填写示例（含各字段的真实文风）见 `assets/research.template.json`——**写第一部作品的 JSON 前先读它**
 
@@ -138,7 +142,7 @@ node anime_pagemap.js      # ④ 从书签反查每部起始页 → _pagemap.jso
 
 1. **封面必须亲眼看**：下载的每张海报用多模态读图确认"确实是这部、竖版优先、不是截图充数"。名字搜索必串味（Hades→Hades II、按 id 猜更糟），必须核对返回的 title 字段
 2. **封面选取标准（用户实测教训）**：要选**角色正脸全员可见**的主视觉/海报——避免演出背影、侧脸遮挡、带"2期制作决定!!"之类宣传文字的图。本篇条目封面常是舞台远景，**优先翻查关联条目**：剧场版总集篇海报往往才是干净的人像竖图（AniList 的 `relations` 字段里 MOVIE 条目的 coverImage 就是候选池，下载后逐个目检挑最好的）
-3. **主题色从封面取**：ACCENTS 表里的色值建议从该作官方主视觉取色（如波奇粉 #e0407e 配粉调海报）；默认色表给的红色遇到粉色系作品会「色调打架」
+3. **主题色自动取自封面**：构建脚本从每部封面提取主导色相自动生成主题色（明度全书统一，与海报天然同调）；取色不满意时用 research 的 `accent` 字段手动覆盖（如粉调海报取色发灰时指定 #e0407e）——交付前目检一眼各章刊头条与封面是否「色调打架」
 4. **全页联络表目检**：整本 PDF 渲小图拼 4×5 网格逐张看（scripts/contact_sheet.js），抓空白页/溢出/乱码
 5. **不编造**：声优、集数、成就、日期查不到就写"未核实/以官网为准"
 6. 数值断言能复算就复算（agent 报的统计数字要抽验）
