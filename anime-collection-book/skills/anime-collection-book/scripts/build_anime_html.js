@@ -314,14 +314,14 @@ const CSS = `
   .cover-pg { break-before: page; display: flex; flex-direction: column; }
   .ov-pg { break-before: page; }   /* 封面之后总览必须自己分页（break-before 对首个元素无效） */
   .cv-kick { font-size: 9pt; font-weight: 500; letter-spacing: .42em; color: var(--ac); margin-top: 4mm; }
-  .cv-grid { display: flex; flex-wrap: wrap; gap: 4mm; margin: 7mm 0 2mm; }
+  .cv-grid { display: flex; flex-wrap: wrap; gap: 4mm; margin: 4mm 0 2mm; }
   .cv-tile { width: calc((100% - 8mm) / 3); aspect-ratio: 3 / 4.1; border-radius: 3mm; overflow: hidden;
              background: #f1f1f4; border-bottom: 2.2mm solid var(--tc, var(--ac)); }
   .cv-tile img { width: 100%; height: 100%; object-fit: cover; display: block; }
   .cv-titleblock { margin-top: auto; }
   .cv-title { font-family: "LXGW WenKai"; font-weight: 700; font-size: 30pt; color: #141419; line-height: 1.3; }
   .cv-sub { font-size: 10.5pt; color: #6b6b76; margin-top: 2.5mm; letter-spacing: .06em; }
-  .cv-foot { display: flex; justify-content: space-between; border-top: 1.6px solid var(--ac); margin-top: 6mm;
+  .cv-foot { display: flex; justify-content: space-between; border-top: 1.6px solid var(--ac); margin-top: 4mm;
              padding-top: 3mm; font-size: 8.5pt; letter-spacing: .18em; color: #6b6b76; }
   .back-pg { break-before: page; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
   .bk-end { font-family: "LXGW WenKai"; font-weight: 700; font-size: 52pt; color: var(--ac); opacity: .16; line-height: 1; }
@@ -484,11 +484,15 @@ const almHtml = (() => {
 })();
 const almPage = almHtml ? `<div class="page alm-pg" style="${varsFor(DEFAULT_ACCENT)}">${almHtml}</div>` : '';
 // ---- 封面 / 封底 ----
-const tiles = showMeta.filter(m => m.cover).slice(0, 9)
-  .map(m => `<div class="cv-tile" style="--tc:${m.ac}"><img src="${m.cover}" alt=""></div>`).join('');
+const coverList = showMeta.filter(m => m.cover).slice(0, 9);
+// 网格列数按封面数量自适应：1 张居中放大、2/4 张双列（4 张正好 2×2，避免 3 列留空位）、其余 3 列
+const cvCols = coverList.length === 1 ? 1 : (coverList.length === 2 || coverList.length === 4) ? 2 : 3;
+const cvW = coverList.length ? `calc((100% - ${(cvCols - 1) * 4}mm) / ${cvCols})` : '';
+const tiles = coverList
+  .map(m => `<div class="cv-tile" style="--tc:${m.ac}; width:${cvW}${coverList.length === 1 ? '; max-width:88mm; margin:0 auto' : ''}"><img src="${m.cover}" alt=""></div>`).join('');
 const coverPage = `<div class="page cover-pg" style="${varsFor(DEFAULT_ACCENT)}">
   <div class="cv-kick">${L.kick}</div>
-  ${tiles ? `<div class="cv-grid">${tiles}</div>` : ''}
+  ${tiles ? `<div class="cv-grid" style="max-width:${cvCols === 2 ? 138 : 180}mm">${tiles}</div>` : ''}
   <div class="cv-titleblock">
     <div class="cv-title">${esc(BOOK_TITLE)}</div>
     <div class="cv-sub">${yearSpan || NOW} · ${shows.length} ${L.person} · ${grand} ${L.chapName}</div>
