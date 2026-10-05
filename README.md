@@ -13,13 +13,15 @@
 
 > 以下效果图为 **虚构演示作品**（`evals/fixture/`，含程序生成的示例封面）——真实书本使用官方海报时请遵守下方「关于素材版权」。
 
-| 总览页（统计卡 + 年份时间轴 + 带页码目录） | 数说收藏页（大数字统计） |
-|---|---|
-| ![总览页](docs/preview-1-overview.png) | ![数说收藏页](docs/preview-2-datanotes.png) |
-
-| 章节首页（海报 + 台词卡 + 结构化制作表 + 状态徽章） |
-|---|
-| ![章节首页](docs/preview-3-show.png) |
+<table>
+  <tr>
+    <td width="50%" align="center"><b>总览页</b><br>统计卡 · 年份时间轴 · 带页码目录<br><br><img src="docs/preview-1-overview.png" alt="总览页"></td>
+    <td width="50%" align="center"><b>数说收藏页</b><br>大数字统计 · 年代分布<br><br><img src="docs/preview-2-datanotes.png" alt="数说收藏页"></td>
+  </tr>
+  <tr>
+    <td colspan="2" align="center"><b>章节首页</b>——海报 · 台词卡 · 结构化制作表 · 状态徽章<br><br><img src="docs/preview-3-show.png" alt="章节首页" width="70%"></td>
+  </tr>
+</table>
 
 ## 安装
 
