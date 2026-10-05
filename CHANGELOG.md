@@ -5,6 +5,7 @@
 - 展示素材合规化：预览图与截图全部改用**虚构演示作品**（evals/fixture + 程序生成的占位封面）重渲，仓库内零第三方作品素材
 - 新增：README「关于素材版权」节——说明海报需使用者自备、成品仅供个人收藏、公开传播需自行评估授权
 - 新增：fixture 补两张程序生成的占位封面（预览图可复现，同时覆盖封面渲染路径）
+- 修复：`SKILL.md` frontmatter 的 `metadata.version` 自 1.4.0 起**漏更**（一直停在 1.3.0），现与 `marketplace.json` / `plugin.json` / `scripts/package.json` 四处对齐为 1.4.3
 
 ## 1.4.2
 
