@@ -20,5 +20,10 @@
     { "name": "第二季", "text": "【测试数据】第二季剧情弧：追踪传说航路的坐标，遭遇引力风暴与旧友重逢，落点是导航仪真相揭晓、全员返航。" }
   ],
   "quote": { "text": "【测试数据】星星不会问你从哪里来，它只管亮。", "speaker": "领航员" },
+  "franchise": [
+    { "name": "TV 第一季", "kind": "TV", "year": "2022", "collected": true },
+    { "name": "TV 第二季", "kind": "TV", "year": "2023", "collected": true },
+    { "name": "剧场版 归港", "kind": "MOVIE", "year": "2024", "collected": false }
+  ],
   "rating": [{ "site": "bangumi", "score": 8.0 }]
 }

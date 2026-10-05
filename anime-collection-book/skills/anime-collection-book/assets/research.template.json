@@ -19,6 +19,11 @@
   "status": "【示例】第 2 期 2026-01 放送（写最新状态：已完结 / 放送中 / 制作决定 / 上映在即）",
   "quote": { "text": "【示例】『魔法，是想让谁看见才施展的。』——选一句最能代表作品气质的台词，避开关键剧透；不需要就整段省略", "speaker": "芙莉莲【示例】" },
   "accent": "#6d28d9",
+  "franchise": [
+    { "name": "本篇 第 1 期", "kind": "TV", "year": "2023", "collected": true },
+    { "name": "第 2 期", "kind": "TV", "year": "2024", "collected": true },
+    { "name": "【示例】把该系列全部条目盘出来（TV/剧场版/OVA/SP），收了的标 true，没收的标 false——章末会出待补清单", "kind": "OVA", "year": "", "collected": false }
+  ],
   "rating": [{ "site": "bangumi", "score": 9.2 }],
   "cover": "covers/葬送的芙莉莲.jpg"
 }

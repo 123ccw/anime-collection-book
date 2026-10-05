@@ -1,6 +1,6 @@
 {
   "name": "anime-collection-book-scripts",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "private": true,
   "description": "番剧收藏册 PDF 管线脚本（先 npm i；再改 config.json 的 root；然后 npm run pipeline）",
   "scripts": {
@@ -11,6 +11,7 @@
     "map": "node anime_pagemap.js",
     "pipeline": "node collect_fonts.js && node build_anime_html.js && node render_pw.js && node anime_pagemap.js && node build_anime_html.js && node render_pw.js && node anime_pagemap.js",
     "sheet": "node contact_sheet.js",
+    "cards": "node export_cards.js",
     "check": "node ../evals/check.js"
   },
   "dependencies": {

@@ -218,7 +218,7 @@ const CSS = `
        border: none; letter-spacing: .04em; }
   th + th { border-left: 1px solid rgba(255,255,255,.22); }
   td { border: none; border-bottom: 1px solid var(--ac-faint); padding: 1.5mm 2.4mm; vertical-align: top;
-       text-align: justify; line-break: strict; }
+       text-align: justify; line-break: strict; overflow-wrap: break-word; }
   td + td { border-left: 1px solid var(--ac-tint2); }
   tbody tr:nth-child(even) td { background: var(--ac-tint); }
   td.sop { font-size: 8.8pt; line-height: 1.7; color: #3c3c46; text-align: justify; }
@@ -256,6 +256,10 @@ const CSS = `
   .yitem { writing-mode: vertical-rl; font-size: 7.6pt; color: #3c3c46; line-height: 1.15; margin: 1mm 0 0; padding: 0; }
   .yitem::before { content: ''; display: block; width: 1.6mm; height: 1.6mm; border-radius: 50%;
                    background: #4f46e5; margin: 0 auto 1mm; }
+  .tl-c1 .yname { font-size: 7pt; letter-spacing: 0; }
+  .tl-c1 .yitem { font-size: 6.6pt; margin-top: .6mm; }
+  .tl-c2 .yname { font-size: 6.4pt; letter-spacing: 0; }
+  .tl-c2 .yitem { display: none; }   /* 年份过多时只留年份点，条目看下方目录 */
 
   /* ===== 台词卡（章节记忆点） ===== */
   .quote { margin: 4mm 12mm 1mm; text-align: center; break-inside: avoid; }
@@ -326,7 +330,6 @@ for (const [i, rec] of shows.entries()) {
   if (r.accent && /^#[0-9a-fA-F]{6}$/.test(String(r.accent))) { ac = String(r.accent).toLowerCase(); acSrc = '手动指定'; }
   else if (cover) { const ex = await extractAccent(path.join(coverDir, slug + '.jpg')); if (ex) { ac = ex; acSrc = '封面取色'; } }
   console.log(`主题色 ${rec.folder} -> ${ac}（${acSrc}）`);
-  showMeta.push({ title, ac, total: totalEps(rec), cover });
 
   const art = cover ? `<div class="art"><img src="${cover}" alt=""></div>` : `<div class="art"></div>`;
   // 制作与声优：结构化渲染（解析失败降级原文本）
@@ -341,8 +344,11 @@ for (const [i, rec] of shows.entries()) {
     : '';
   const unitSops = r.unit_synopses || [];
   const sopOf = (name) => { const hit = unitSops.find((u) => u.name === name); return hit ? hit.text : ''; };
-  const unitRows = (rec.units || [])
-    .filter(u => (u.eps || 0) > 0)
+  // 单元名列宽按最长名字自适应（ASCII 半宽折算；短名不浪费宽，长名不硬折）
+  const unitsAll = (rec.units || []).filter(u => (u.eps || 0) > 0);
+  const vLen = s => String(s).replace(/[\x21-\x7E]/g, 'i').length;
+  const nameW = Math.min(48, Math.max(26, Math.ceil(Math.max(0, ...unitsAll.map(u => vLen(u.name))) * 3.3) + 7));
+  const unitRows = unitsAll
     .map(u => ({ ...u, air: u.airdate || (u.name === '本篇' ? rec.airdate : null) }))
     .sort((a, b) => (a.air || Infinity) - (b.air || Infinity))
     .map(u => {
@@ -357,6 +363,14 @@ for (const [i, rec] of shows.entries()) {
   const quoteHtml = (q && q.text)
     ? `<div class="quote"><div class="qm">「</div><div class="qt">${esc(q.text)}</div>${q.speaker ? `<div class="qs">—— ${esc(q.speaker)}</div>` : ''}</div>`
     : '';
+  // 系列完整度：franchise = 该系列全部条目盘点（collected 标是否已收）
+  const fr = Array.isArray(r.franchise) ? r.franchise.filter(f => f && f.name) : [];
+  const frMiss = fr.filter(f => !f.collected);
+  const frMissTxt = frMiss.map(f => `${f.kind ? f.kind + ' ' : ''}${f.name}${f.year ? '（' + f.year + '）' : ''}`).join('、');
+  const frCardHtml = fr.length
+    ? `<div class="card"><p><b>系列条目 ${fr.length - frMiss.length}/${fr.length}</b>${frMiss.length ? ` ——待补：${esc(frMissTxt)}` : ' ——已收全 ✓'}</p></div>`
+    : '';
+  showMeta.push({ title, ac, total: totalEps(rec), cover, jp: titleJp, genres: genres.slice(0, 3), quote: q || null, frTotal: fr.length, frMiss: frMiss.length });
 
   chapters.push(`
   <div class="show" id="show${String(i + 1).padStart(2, '0')}" style="${varsFor(ac)}">
@@ -370,6 +384,7 @@ for (const [i, rec] of shows.entries()) {
         ${ratings ? `<div class="score">评分　${ratings}</div>` : ''}
         <div class="score">收藏　<b>${unitCount(rec)}</b> 个单元 · 共 <b>${totalEps(rec)}</b> 集${air0 ? ` · 首播 <b>${air0}</b>` : ''}</div>
         ${r.status ? `<div class="score"><span class="std ${stClass(r.status)}">${esc(r.status)}</span></div>` : ''}
+        ${fr.length ? `<div class="score">系列收录　<b>${fr.length - frMiss.length}</b> / <b>${fr.length}</b> 条</div>` : ''}
       </div>
     </div>
     ${quoteHtml}
@@ -381,9 +396,10 @@ for (const [i, rec] of shows.entries()) {
     ${upd ? `<h2>动画更新</h2><div class="card"><p>${esc(upd)}</p></div>` : ''}
     <h2>收藏详情</h2>
     <table><thead><tr>${unitSops.length
-      ? '<th style="width:26mm">单元</th><th style="width:14mm">集数</th><th style="width:26mm">首播</th><th>剧情（含剧透）</th>'
-      : '<th style="width:64mm">单元</th><th style="width:34mm">集数</th><th>首播</th>'}</tr></thead>
+      ? `<th style="width:${nameW}mm">单元</th><th style="width:14mm">集数</th><th style="width:26mm">首播</th><th>剧情（含剧透）</th>`
+      : `<th style="width:${Math.min(64, nameW + 14)}mm">单元</th><th style="width:34mm">集数</th><th>首播</th>`}</tr></thead>
     <tbody>${unitRows}</tbody></table>
+    ${frCardHtml}
   </div>`);
 
   tocRows += `<li><a href="#show${String(i + 1).padStart(2, '0')}">${esc(title)}</a> <span class="n-ep">${totalEps(rec)} 集</span><span class="pg">${pgOf(title)}</span></li>`;
@@ -416,6 +432,8 @@ const almHtml = (() => {
   const longest = showMeta.slice().sort((a, b) => b.total - a.total)[0];
   const doneCnt = shows.filter(s => stClass((research[s.folder] || {}).status || '') === 'std-done').length;
   const airCnt = shows.filter(s => stClass((research[s.folder] || {}).status || '') === 'std-air').length;
+  const frShows = showMeta.filter(m => m.frTotal > 0);
+  const missTotal = frShows.reduce((s, m) => s + m.frMiss, 0);
   if (!shows.length) return '';
   const span = years.length ? (years[0] === years[years.length - 1] ? String(years[0]) : `${years[0]} – ${years[years.length - 1]}`) : '—';
   const spanYears = years.length ? (years[years.length - 1] - years[0] + 1) + ' 年' : '—';
@@ -431,6 +449,7 @@ const almHtml = (() => {
       ${topGenre ? block('最高频类型', `「${topGenre[0]}」`, `在 ${topGenre[1]} 部作品中出现`) : ''}
       ${decKeys.length ? `<div class="st2"><div class="lb">年代分布</div><div style="margin-top:2mm">${bars}</div></div>` : ''}
       ${block('完结 / 放送中', `${doneCnt} / ${airCnt}`, airCnt ? `${airCnt} 部正在放送` : (doneCnt === shows.length ? '收录作品全部完结' : '以各章状态徽章为准'))}
+      ${frShows.length ? block('待补条目', missTotal ? `${missTotal} 条` : '收齐 ✓', missTotal ? '各系列盘点出的未收条目' : '全部系列条目均在收藏中') : ''}
     </div>
   </div>`;
 })();
@@ -453,8 +472,8 @@ const backPage = `<div class="page back-pg" style="${varsFor(DEFAULT_ACCENT)}">
   <div class="bk-line">${yearSpan || NOW} · ${shows.length} 部 · ${grand} 集</div>
   <div class="bk-cred">ANIME COLLECTION · ${NOW} · Generated with anime-collection-book</div>
 </div>`;
-// 时间轴：按首播年份分列（竖排名）
-const tlHtml = (() => {
+// 时间轴：按首播年份分列（竖排名）；年份多时逐级收紧防挤爆
+const tl = (() => {
   const byYear = {};
   shows.forEach(s => {
     const y0 = s.airdate || (s.units || []).map(u => u.airdate).filter(Boolean).sort()[0];
@@ -464,9 +483,14 @@ const tlHtml = (() => {
     const nm = rj.title_zh || s.title || s.folder;
     (byYear[y] = byYear[y] || []).push(nm);
   });
-  return Object.keys(byYear).sort().map(y =>
-    `<div class="ycol"><div class="yname">${y}</div>${byYear[y].map(n => `<div class="yitem">${esc(n.length > 9 ? n.slice(0, 9) + '…' : n)}</div>`).join('')}</div>`
-  ).join('');
+  const yrs = Object.keys(byYear).sort();
+  const cls = yrs.length > 14 ? ' tl-c2' : yrs.length > 8 ? ' tl-c1' : '';
+  return {
+    cls,
+    html: yrs.map(y =>
+      `<div class="ycol"><div class="yname">${y}</div>${byYear[y].map(n => `<div class="yitem">${esc(n.length > 9 ? n.slice(0, 9) + '…' : n)}</div>`).join('')}</div>`
+    ).join(''),
+  };
 })();
 const html = `<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8">
 <meta name="accent" content="#4f46e5">
@@ -483,7 +507,7 @@ const html = `<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8">
     <div class="st"><b>${grand}</b><span>集 收藏</span></div>
     <div class="st"><b>${yearSpan}</b><span>收录年份跨度</span></div>
   </div>
-  <div class="tl">${tlHtml}</div>
+  <div class="tl${tl.cls}">${tl.html}</div>
   <div class="toc">
     <h2>目录<span class="cnt">${shows.length} 部</span></h2>
     <ol>${tocRows}</ol>
@@ -497,7 +521,49 @@ ${backPage}
 </body></html>`;
 
 fs.writeFileSync(path.join(OUT, '番剧收藏简介.html'), html, 'utf8');
+
+// ---- 分享卡片页（独立文件，不进书；npm run cards 对每张截图成 PNG） ----
+const CARD_CSS = `
+  body { margin: 0; padding: 20px 0; background: #e9e9ef; font-family: "LXGW WenKai", "Noto Sans SC", sans-serif; }
+  .scard { position: relative; width: 750px; height: 1000px; margin: 24px auto; border-radius: 24px;
+           overflow: hidden; background: #fff; box-shadow: 0 12px 40px rgba(20,20,30,.16); }
+  .scard-art { position: relative; width: 100%; height: 545px; overflow: hidden; }
+  .scard-art img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .scard-art::after { content: ''; position: absolute; inset: 0;
+      background: linear-gradient(180deg, rgba(0,0,0,0) 55%, rgba(0,0,0,.45)); }
+  .scard-badge { position: absolute; top: 26px; left: 26px; background: var(--ac-dark); color: #fff;
+      font-size: 22px; letter-spacing: .3em; padding: 10px 18px 10px 26px; border-radius: 999px; opacity: .94; }
+  .scard-body { padding: 36px 46px 0; }
+  .scard-title { font-weight: 700; font-size: 52px; color: #141419; line-height: 1.25; margin: 0; }
+  .scard-jp { font-size: 24px; color: var(--ac-ink); margin-top: 10px; }
+  .scard-chips span { display: inline-block; font-size: 22px; color: var(--ac-dark); background: var(--ac-tint);
+      border: 1px solid var(--ac-faint); border-radius: 999px; padding: 6px 22px; margin: 20px 12px 0 0; }
+  .scard-quote { margin-top: 36px; font-size: 30px; line-height: 1.7; color: var(--ac-ink); }
+  .scard-quote i { font-style: normal; display: block; font-size: 20px; color: #8b8b96; margin-top: 12px; }
+  .scard-foot { position: absolute; left: 0; right: 0; bottom: 0; display: flex; justify-content: space-between;
+      align-items: center; padding: 28px 46px; background: var(--ac-tint); border-top: 3px solid var(--ac);
+      font-size: 24px; color: #3c3c46; }
+`;
+const cardsHtml = `<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8">
+<title>${esc(BOOK_TITLE)} · 收藏卡</title><style>${CSS}${CARD_CSS}</style></head><body>
+${showMeta.filter(m => m.cover).map((m, i) => {
+  const q = m.quote;
+  const chips = (m.genres || []).map(g => `<span>${esc(g)}</span>`).join('');
+  return `<div class="scard" style="${varsFor(m.ac)}">
+  <div class="scard-art"><img src="${m.cover}"><div class="scard-badge">收藏卡</div></div>
+  <div class="scard-body">
+    <h3 class="scard-title">${esc(m.title)}</h3>
+    ${m.jp ? `<div class="scard-jp">${esc(m.jp)}</div>` : ''}
+    ${chips ? `<div class="scard-chips">${chips}</div>` : ''}
+    ${q && q.text ? `<div class="scard-quote">「${esc(q.text)}」${q.speaker ? `<i>—— ${esc(q.speaker)}</i>` : ''}</div>` : ''}
+  </div>
+  <div class="scard-foot"><span>${m.total} 集 · ${yearSpan || NOW}</span><span>${esc(BOOK_TITLE)}</span></div>
+</div>`; }).join('\n')}
+</body></html>`;
+fs.writeFileSync(path.join(OUT, 'share_cards.html'), cardsHtml, 'utf8');
+
 const missing = shows.filter(s => !research[s.folder]).map(s => s.folder);
 console.log(`built ${shows.length} chapters -> anime_build/番剧收藏简介.html`);
+console.log(`share cards: ${showMeta.filter(m => m.cover).length} 张 -> anime_build/share_cards.html`);
 if (missing.length) console.log('no research for:', missing.join('、'));
 })().catch(e => { console.error('构建失败：', e.message); process.exit(1); });

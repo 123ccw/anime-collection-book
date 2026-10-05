@@ -4,7 +4,7 @@ license: MIT
 compatibility: Requires Node.js >=20 with npm, Python 3 + fonttools/brotli (font subsetting), Playwright Chromium (or system Edge), and internet access for online research.
 metadata:
   author: 123ccw
-  version: "1.1.0"
+  version: "1.2.0"
 description: Use when 用户想把番剧/动画做成"收藏册/图鉴/纪念册/简介 PDF"——可只给片名清单（清单也可来自对话上文或文件，无需本地视频文件），也可基于本机视频收藏库；TV/剧场版/OVA 及 Galgame 视觉小说的同类整理均适用。产出杂志风 PDF：官方海报、无剧透简介（剧透独立成逐季表）、制作声优、主题歌与观看平台、补番顺序、可点击目录与书签页脚。不用于：非影音内容的整理（如游戏攻略）、追番进度管理（这不是 tracker）、视频文件整理/重命名/媒体库刮削（Jellyfin/Emby/Plex 场景）、对已有 PDF 的格式转换。
 ---
 
@@ -72,6 +72,7 @@ description: Use when 用户想把番剧/动画做成"收藏册/图鉴/纪念册
   "status": "第 3 期放送中；或 已完结 / 第 2 期制作决定（档期待定） / 剧场版 2026-10-16 上映在即",
   "quote": {"text": "代表作品气质的一句台词（避开关键剧透；不需要可省略）", "speaker": "说话角色"},
   "accent": "#e0407e",
+  "franchise": [{"name": "剧场版 总集篇 前篇", "kind": "MOVIE", "year": "2015", "collected": true}],
   "units": [{"name": "第一季", "eps": 12, "airdate": 1700000000000}],
   "unit_synopses": [{"name": "第一季", "text": "100-250 字剧透简介：主线→转折→结局落点"}],
   "rating": [{"site": "bangumi", "score": 7.9}],
@@ -84,6 +85,7 @@ description: Use when 用户想把番剧/动画做成"收藏册/图鉴/纪念册
 - `music` / `platforms` / `status`：可选，缺失自动隐藏对应板块；**status 决定标题区徽章颜色**（含"已完结"=灰、"放送中"=绿、其它=琥珀）
 - `quote`：可选，有就渲染成章节台词卡（大字居中记忆点）；直接给字符串或 `{text, speaker}` 结构均可
 - `accent`：可选，6 位 hex，手动指定主题色；**缺省自动从该部封面提取主色**（全书明度统一），仅取色不满意时覆盖
+- `franchise`：可选，该系列**全部条目**盘点（TV/剧场版/OVA/SP；`collected` 标是否已在收藏）——渲染「系列收录 M/N」与章末待补清单，数说页汇总待补数。条目名用官方译名，`kind` 取 TV/MOVIE/OVA/SP
 - `production` 请尽量按"键：值；键：值……主要声优：角色·CV、…"格式写——渲染端会自动拆成结构化表格（格式不符则降级为整段文本，不会出错）
 - 完整填写示例（含各字段的真实文风）见 `assets/research.template.json`——**写第一部作品的 JSON 前先读它**
 
@@ -121,6 +123,7 @@ description: Use when 用户想把番剧/动画做成"收藏册/图鉴/纪念册
 npm run pipeline   # 字体子集 → 两轮「构建→渲染→页码反查」，一条命令跑完
 npm run check      # 自动断言（产物完整性 / 页码全命中 / 无乱码字符）
 npm run sheet      # 生成全页联络表（目检用）
+npm run cards      # 导出收藏卡 PNG + 高清整页图（社交发图用，anime_build/_cards 与 _gallery）
 ```
 
 **手动分步**（调试或理解原理时用，脚本都在同一目录）：
