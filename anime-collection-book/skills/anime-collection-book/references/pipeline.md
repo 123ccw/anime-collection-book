@@ -6,10 +6,15 @@
 
 ### Tavily（tvly CLI——搜索首选；本机拿不到的页全靠它）
 ```
-printf '查询词' | tvly search - --json                 # 中文查询必须走 stdin（Windows 直传参会乱码）
-printf 'site:zh.wikipedia.org <作品名>' | tvly search - --max-results 1 --include-raw-content --json
+# Windows 先设 $env:PYTHONIOENCODING='utf-8'，否则 --json 会撞控制台 GBK（UnicodeEncodeError）
+tvly search "查询词" --json                      # 中文可直接当参数（实测可行）
+tvly search "site:zh.wikipedia.org <作品名> 动画" --max-results 1 --include-raw-content markdown --json
 ```
-- `--include-raw-content` 返回整页 markdown：维基动画条目一页同含「主題歌」（OP/ED）与「网络播放」（平台）两节，本地按关键词过滤行即可
+- `--include-raw-content` 建议显式给值 `markdown`
+- ⚠ **不要指望固定的「主題歌」「网络播放」小节名**：实测《葬送的芙莉莲》条目里这两个词**根本不存在**——音乐与平台信息在 `## 电视动画` 小节内，正文用「片头曲 / 片尾曲 / 放送」等词。各条目用词不一，所以正确做法是：
+  1. 抓到正文后**先验证目标信息在场**（正文里能 grep 到「片头曲」或「放送」之类再解析）；**没命中不许静默跳过字段**，要显式说明"该字段未查到"
+  2. 没命中就换更具体的查询（加「动画」「主题曲」「播放平台」等词），或拆成两次抓（音乐一次、平台一次），必要时 `tvly extract` 直接抽条目 URL
+- ⚠ **同一条查询两次返回的正文长度可能差数倍**（实测 28,328 vs 87,436 字符）：偏短多半意味着**没覆盖到目标小节**——这种结果要重抓或换查询，别拿它下结论
 - **本机直连 zh.wikipedia.org 常返回空**（curl 全部失败），必须走 tvly 服务端抓取
 - 曲名常挂在标题行下一行（`片尾曲` ⏎ `: "曲名"`），正则命中后连着后 1-2 行一起取；名字被 `[[链接]]` 语法截断时，同法补救
 - 还有 tvly extract（指定 URL 抽正文）/ research（多源综合）子命令

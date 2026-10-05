@@ -12,7 +12,7 @@ description: Use when 用户想把番剧/动画做成"收藏册/图鉴/纪念册
 
 ## 高频坑位（开工前先读，都是实测踩出来的）
 
-- **国内网络直连 zh.wikipedia.org 拿不到数据**（curl 返回空）——一切经 tvly 抓取。**Windows 上 tvly 输出 JSON 会撞控制台 GBK 编码**（`UnicodeEncodeError: 'gbk' codec can't encode...`）：先 `$env:PYTHONIOENCODING='utf-8'`（或 `chcp 65001`）再调用，中文当参数直传也可（实测可行）；个别 shell 下参数传递出问题时改走 stdin：`type q.txt | tvly search - --json`（POSIX：`printf '查询词' | tvly search - --json`）
+- **国内网络直连 zh.wikipedia.org 拿不到数据**（curl 返回空）——一切经 tvly 抓取。**Windows 上 tvly 输出 JSON 会撞控制台 GBK 编码**（`UnicodeEncodeError: 'gbk' codec can't encode...`）：先 `$env:PYTHONIOENCODING='utf-8'`（或 `chcp 65001`）再调用，中文当参数直传也可（实测可行）；个别 shell 下参数传递出问题时改走 stdin：`type q.txt | tvly search - --json`（POSIX：`printf '查询词' | tvly search - --json`）。**另外：维基条目的音乐/平台不要按固定小节名捞**（「主題歌」「网络播放」实测不存在），先验证正文含目标小节再解析，见 `references/pipeline.md`
 - **维基条目的曲名/人名常挂在标题行的下一行**（`片尾曲` ⏎ `: "曲名"`）——过滤时连取后 1-2 行，否则数据截断
 - **`unit_synopses[].name` 必须与 `units[].name` 逐字一致**——不一致该单元渲染为空白（构建时会打印 ⚠ 警告，看到就回查名字）
 - **封面要选角色正脸海报**——AniList 本篇条目封面常是舞台远景/背影，翻 `relations` 里的 MOVIE 条目找干净竖图；**完整选图审美标准见 `references/image-selection.md`（有戏 > 清晰）**
@@ -116,7 +116,7 @@ description: Use when 用户想把番剧/动画做成"收藏册/图鉴/纪念册
 3. 走下方「构建」
 
 ### 模式 B
-1. 扫描视频库生成 anime_base.json（每部：folder/title/units[{name,eps,airdate}]/cover 指向 `_其他文件` 内封面）
+1. 扫描视频库生成 anime_base.json（每部：folder/title/units[{name,eps,airdate}]/cover 指向**该作品文件夹内的封面文件**——本文示例视频库把它放在 `_其他文件/` 下，那只是示例约定，**你的库叫什么就填什么**，`cover` 只需是相对作品文件夹的路径）
 2. 调研 agent 补 research JSON（production/watch_order/unit_synopses/cover 覆盖）
 3. 走「构建」
 
@@ -147,7 +147,7 @@ node anime_pagemap.js      # ④ 从书签反查每部起始页 → _pagemap.jso
 ## 数据核实方法（实测最顺的链路）
 
 - **搜索优先走 tvly（Tavily CLI）**：Windows 先 `$env:PYTHONIOENCODING='utf-8'`（否则 `--json` 撞 GBK 编码直接失败），再 `tvly search "查询词" --json`；参数传递出问题时改走 stdin（`type q.txt | tvly search - --json`）。无需 API key 也能用（有速率上限，`tvly login` 解除）
-- **一次拿全 OP/ED + 平台的姿势**：`tvly search "site:zh.wikipedia.org <作品名>" --max-results 1 --include-raw-content --json`——维基动画条目一页同含「主題歌」与「网络播放」两节，本地过滤关键词行即可。两个坑：① 本机直连 zh.wikipedia.org 常不通（curl 返回空），**必须走 tvly 服务端抓取**；② 曲名常挂在标题行的下一行（`片尾曲` ⏎ `: "曲名"`），过滤正则命中后要把「该行 + 后 1-2 行」一起取
+- **一次拿全 OP/ED + 平台的姿势**：`tvly search "site:zh.wikipedia.org <作品名> 动画" --max-results 1 --include-raw-content markdown --json`。**别按固定小节名去捞**——实测「主題歌」「网络播放」这两个标题在条目里根本不存在，音乐与平台信息在 `## 电视动画` 小节内、用「片头曲/片尾曲/放送」等词。所以：**抓到正文先确认目标信息在场再解析，没命中就换更具体的查询或拆成两次抓，不许静默跳过字段**（另外同一条查询两次返回的正文长度可能差数倍，偏短=没覆盖到该小节）。两个既有坑：① 本机直连 zh.wikipedia.org 常不通（curl 返回空），**必须走 tvly 服务端抓取**；② 曲名常挂在标题行的下一行（`片尾曲` ⏎ `: "曲名"`），过滤正则命中后要把「该行 + 后 1-2 行」一起取
 - **AniList GraphQL**（封面/季集数）：curl 直接调，但搜索必须用罗马字/英文名并核对返回 title；**关联条目（尤其 relations 里的 MOVIE）的封面常比本篇条目更适合做册子封面**（本篇封面常是舞台远景/截图）
 - 本机连不上的源（维基、bgm.tv 部分接口）：一律经 tvly 抓，别用 curl 硬顶
 
