@@ -555,22 +555,24 @@ fs.writeFileSync(path.join(OUT, '番剧收藏简介.html'), html, 'utf8');
 const CARD_CSS = `
   body { margin: 0; padding: 20px 0; background: #e9e9ef; font-family: "LXGW WenKai", "Noto Sans SC", sans-serif; }
   .scard { position: relative; width: 750px; height: 1000px; margin: 24px auto; border-radius: 24px;
-           overflow: hidden; background: #fff; box-shadow: 0 12px 40px rgba(20,20,30,.16); }
+           overflow: hidden; background: #fff; box-shadow: 0 12px 40px rgba(20,20,30,.16);
+           display: flex; flex-direction: column; }
   .scard-art { position: relative; width: 100%; height: 545px; overflow: hidden; }
   .scard-art img { width: 100%; height: 100%; object-fit: cover; display: block; }
   .scard-art::after { content: ''; position: absolute; inset: 0;
       background: linear-gradient(180deg, rgba(0,0,0,0) 55%, rgba(0,0,0,.45)); }
   .scard-badge { position: absolute; top: 26px; left: 26px; background: var(--ac-dark); color: #fff;
       font-size: 22px; letter-spacing: .3em; padding: 10px 18px 10px 26px; border-radius: 999px; opacity: .94; }
-  .scard-body { padding: 36px 46px 0; }
-  .scard-title { font-weight: 700; font-size: 52px; color: #141419; line-height: 1.25; margin: 0; }
-  .scard-jp { font-size: 24px; color: var(--ac-ink); margin-top: 10px; }
+  .scard-body { flex: 1; overflow: hidden; padding: 32px 46px 10px; }
+  .scard-title { font-weight: 700; font-size: 48px; color: #141419; line-height: 1.25; margin: 0; }
+  .scard-jp { font-size: 23px; color: var(--ac-ink); margin-top: 10px; }
   .scard-chips span { display: inline-block; font-size: 22px; color: var(--ac-dark); background: var(--ac-tint);
-      border: 1px solid var(--ac-faint); border-radius: 999px; padding: 6px 22px; margin: 20px 12px 0 0; }
-  .scard-quote { margin-top: 36px; font-size: 30px; line-height: 1.7; color: var(--ac-ink); }
+      border: 1px solid var(--ac-faint); border-radius: 999px; padding: 6px 22px; margin: 16px 12px 0 0; }
+  .scard-quote { margin-top: 24px; font-size: 27px; line-height: 1.65; color: var(--ac-ink);
+      display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
   .scard-quote i { font-style: normal; display: block; font-size: 20px; color: #8b8b96; margin-top: 12px; }
-  .scard-foot { position: absolute; left: 0; right: 0; bottom: 0; display: flex; justify-content: space-between;
-      align-items: center; padding: 28px 46px; background: var(--ac-tint); border-top: 3px solid var(--ac);
+  .scard-foot { position: static; margin-top: auto; display: flex; justify-content: space-between;
+      align-items: center; padding: 26px 46px; background: var(--ac-tint); border-top: 3px solid var(--ac);
       font-size: 24px; color: #3c3c46; }
 `;
 const cardsHtml = `<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8">
