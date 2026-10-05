@@ -338,6 +338,7 @@ const CSS = `
   .bk-line { font-size: 9pt; color: #6b6b76; margin-top: 2mm; letter-spacing: .08em; }
   .bk-cred { font-size: 7.5pt; color: #8b8b96; letter-spacing: .14em; margin-top: 18mm; }
   .bk-src { font-size: 7pt; color: #a0a0aa; margin-top: 3mm; line-height: 1.7; max-width: 120mm; }
+  .bk-notice { font-size: 7pt; color: #8b8b96; margin-top: 2mm; line-height: 1.7; max-width: 130mm; }
   .bk-font { font-size: 6.5pt; color: #b0b0ba; margin-top: 5mm; line-height: 1.7; max-width: 130mm; }
 `;
 
@@ -529,12 +530,16 @@ const coverPage = `<div class="page cover-pg" style="${varsFor(DEFAULT_ACCENT)}"
   </div>
   <div class="cv-foot"><span>${NOW}</span><span>${String(shows.length).padStart(2, '0')} WORKS</span></div>
 </div>`;
+// 合规默认值：素材声明与资料来源随成品输出，不依赖使用者是否填了 credits（这两行请勿删）
+const NOTICE = '非官方粉丝作品 · 仅供个人收藏 · 海报/立绘版权归原作者与制作委员会所有 · 请勿售卖或公开传播';
+const DEFAULT_CREDITS = '资料来源：公开资料整理（AniList / Bangumi / 维基百科等），文字为重新撰写，版权归原作者所有';
 const backPage = `<div class="page back-pg" style="${varsFor(DEFAULT_ACCENT)}">
   <div class="bk-end">完</div>
   <div class="bk-title">${esc(BOOK_TITLE)}</div>
   <div class="bk-line">${yearSpan || NOW} · ${shows.length} ${L.person} · ${grand} ${L.chapName}</div>
   <div class="bk-cred">${L.m2} · ${NOW} · Generated with anime-collection-book</div>
-  ${CFG.credits ? `<div class="bk-src">${esc(CFG.credits)}</div>` : ''}
+  <div class="bk-src">${esc(CFG.credits || DEFAULT_CREDITS)}</div>
+  <div class="bk-notice">${esc(NOTICE)}</div>
   <div class="bk-font">本册中文字体：霞鹜文楷 LXGW WenKai（SIL OFL 1.1）｜© LXGW｜© The Klee Project Authors（基于 FONTWORKS「Klee One」衍生）</div>
 </div>`;
 // 时间轴：按首播年份分列（竖排名）；年份多时逐级收紧防挤爆

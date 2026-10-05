@@ -33,7 +33,9 @@ function curlText(args) { return execFileSync('curl', args, { encoding: 'utf8', 
 function dl(url, dest, timeout) { curl(['-sL', '--connect-timeout', '12', '--max-time', timeout || '120', '-H', `User-Agent: ${UA}`, '-o', dest, url]); }
 
 function fetchList(tag) {
-  const url = `https://safebooru.org/index.php?page=dapi&s=post&q=index&tags=${encodeURIComponent(tag)}+official_art&limit=40`;
+  // 硬过滤分级：safebooru 本身是 SFW 站，但同族图站常混入擦边素材，这里按白名单原则显式排除。
+  // 涉未成年角色的性化素材在多国属刑事问题，风险远大于版权——宁可少抓也不能抓到。
+  const url = `https://safebooru.org/index.php?page=dapi&s=post&q=index&tags=${encodeURIComponent(tag)}+official_art+-rating:explicit+-rating:questionable&limit=40`;
   const xml = curlText(['-s', '--connect-timeout', '12', '--max-time', '60', '-H', `User-Agent: ${UA}`, url]);
   return [...xml.matchAll(/<post [^>]*>/g)].map(m => m[0]).map(s => ({
     file: (s.match(/file_url="([^"]+)"/) || [])[1],

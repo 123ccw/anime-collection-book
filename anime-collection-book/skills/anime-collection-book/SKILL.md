@@ -4,7 +4,7 @@ license: MIT
 compatibility: Requires Node.js >=20 with npm, Python 3 + fonttools/brotli (font subsetting), Playwright Chromium (or system Edge), curl and the Tavily CLI (tvly; Windows needs PYTHONIOENCODING=utf-8 for --json), and internet access for anime research (novel mode is offline).
 metadata:
   author: 123ccw
-  version: "1.4.4"
+  version: "1.4.5"
 description: Use when 用户想把番剧/动画做成"收藏册/图鉴/纪念册/简介 PDF"——可只给片名清单（清单也可来自对话上文或文件，无需本地视频文件），也可基于本机视频收藏库；TV/剧场版/OVA 及 Galgame 视觉小说的同类整理均适用。也用于把网文/小说的设定资料整理成"设定集/角色档案册/伏笔追踪手册/读者向无剧透图鉴 PDF"（数据来自用户本地稿件或笔记，离线完成）。产出杂志风 PDF：海报墙封面封底、无剧透简介（剧透独立成表）、结构化要点表、每部主题色章节、数说统计页、可点击目录与书签页脚，另可导出竖版分享卡 PNG。不用于：追番进度管理（这不是 tracker）、视频文件整理/重命名/媒体库刮削（Jellyfin/Emby/Plex 场景）、对已有 PDF 的格式转换、小说正文本身的写作或排版。
 ---
 
@@ -122,7 +122,7 @@ description: Use when 用户想把番剧/动画做成"收藏册/图鉴/纪念册
 
 ### 构建（在 skill 的 `scripts/` 目录执行；首次先 `npm i`，再把 `config.example.json` 复制为 `config.json` 并把 `root` 改为你的项目根）
 
-> `config.json` 是**本机配置，不入库**（含你的路径/书名，见 .gitignore）；仓库只提供 `config.example.json` 模板。可用字段：`root`（项目根）、`vroot`（模式 B 视频库根）、`domain`（anime/novel）、`title`（自定义书名，默认《番剧收藏简介》，影响封面/总览/封底显示，输出文件名不变）；改完照常 `npm run pipeline`（字体子集会自动收录新书名字符）
+> `config.json` 是**本机配置，不入库**（含你的路径/书名，见 .gitignore）；仓库只提供 `config.example.json` 模板——**把文件夹拷给别人或上传前记得删掉它**（详见「素材与合规」末条）。可用字段：`root`（项目根）、`vroot`（模式 B 视频库根）、`domain`（anime/novel）、`title`（自定义书名，默认《番剧收藏简介》，影响封面/总览/封底显示，输出文件名不变）、`credits`（封底"资料来源"行，留空则用内置默认：公开资料整理 + 不指向具体站点的兜底表述）；改完照常 `npm run pipeline`（字体子集会自动收录新书名字符）
 
 **一键（推荐）**：
 
@@ -161,6 +161,18 @@ node anime_pagemap.js      # ④ 从书签反查每部起始页 → _pagemap.jso
 6. 数值断言能复算就复算（agent 报的统计数字要抽验）
 7. **发册前做时效复核**：用 tvly 把每部的最新动态（续作官宣/定档/上映日/放送进度）过一遍——"截至 YYYY-MM"写旧的册子一眼就显得没维护；在播作品的 status 徽章尤其容易过期
 8. 改版/删内容前备份成品
+
+## 素材与合规（交付前必读）
+
+不是"建议"，是交付门槛。**封底自动输出的两行声明（资料来源 / 非官方粉丝作品 · 仅供个人收藏）不要删**，由 build 脚本写入，不依赖使用者是否填 `credits`。
+
+- **只做个人收藏**：海报、立绘、截图的版权属原作者与各制作委员会。个人自用通常可以；**公开发布（发群、上传平台、印制售卖）必须自行取得授权**——注明来源不能替代授权
+- **文字必须重写**：`synopsis` / `unit_synopses` / `watch_order` 一律自己组织语言，**不得逐句搬运**维基百科、萌娘百科、官网原文（事实不受保护，但表述受 CC BY-SA 一类许可约束）。写完抽一句回搜，命中原文就改
+- **只用全年龄素材**：命中 R-18 / 擦边 / 性化未成年角色的素材**一律弃用换源**（`npm run candidates` 已在查询里排除 explicit/questionable，但那只是兜底，最终以目视为准）。这类内容的法律后果是刑事级的，远重于版权
+- **不用同人图**（授权链条不清、质量不可控）、**不收录真人素材**（声优照片等涉及肖像权）
+- **不伪装官方**：封面不用官方 logo，不写"官方/正版"，封底的「非官方粉丝作品」声明保留
+- **字体署名保留**：霞鹜文楷 SIL OFL 1.1 要求版权声明随字体分发，封底那行不是可选装饰
+- **外发前清理（隐私）**：把项目文件夹拷给别人或上传网盘前，删掉 `scripts/config.json`（含你的本机绝对路径）、`names.txt`（你的片单＝观看偏好）、`anime_research/`（调研稿与已下载图片）。仓库不含这些（见 `.gitignore`），但**手动拷贝文件夹时会一起带走**
 
 ## 环境依赖
 

@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.4.5
+
+- 合规（重要）：成品封底现在**默认自带两行声明**——「资料来源：公开资料整理（AniList / Bangumi / 维基百科等），文字为重新撰写」+「**非官方粉丝作品 · 仅供个人收藏** · 海报/立绘版权归原作者与制作委员会所有 · 请勿售卖或公开传播」。此前 `credits` 是纯可选项、默认留空，等于分发出去的册子**零署名**；现由 `DEFAULT_CREDITS` 兜底，填了 `credits` 仍可覆盖
+- 合规：`npm run candidates` 的 safebooru 查询新增 **`-rating:explicit -rating:questionable`** 硬过滤（实测结果集不缩水）。涉未成年角色的性化素材在多国属刑事问题，风险远重于版权，不能只靠口头约定
+- 文档：`SKILL.md` 新增「**素材与合规（交付前必读）**」小节——只做个人收藏 / 文字不得逐句搬运百科原文（表述受 CC BY-SA 约束）/ 只用全年龄素材 / 不用同人图与真人素材 / 不伪装官方 / 保留字体署名 / **外发前删 `config.json`、`names.txt`、`anime_research/`**。此前的合规声明只在 README 里，而实际执行的是读 SKILL.md 的 agent
+- 文档：README 补「隐私：外发前请清理」表格（说明这三样不在版本库里，但手动拷文件夹会一起带走），并如实标注：**实测成品 HTML 与 PDF 正文及元数据均不含本机路径或用户名**；`references/image-selection.md` 增加「法律红线」一节
+- 合规：`assets/names.txt` 示例名单改用虚构作品（此前仍是真实在播作品名，1.4.3 的素材合规扫尾漏网）
+- 配置：`config.example.json` 补 `credits` 字段（留空即用内置默认）
+
 ## 1.4.4
 
 - 修复：`fetch_candidates.js` 的 `--pick` 入库入口引用**未定义变量 `COVERS`**，取图必崩（SKILL.md 与 1.4.0 都把它当用法宣传，实际最后一跳是断的）
