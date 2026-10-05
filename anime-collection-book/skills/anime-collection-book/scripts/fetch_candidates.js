@@ -37,38 +37,34 @@ function fetchList(tag) {
     .sort((a, b) => b.w * b.h - a.w * a.h);
 }
 
-// 入库：只接收已解析的编号（两位数字串）与裁切比例——不接收命令行/路径；文件路径全为常量
-async function pick(idx, keepTop) {
-  if (!/^[0-9]{2}$/.test(idx)) { console.error('编号非法：' + idx); process.exit(1); }
-  if (!Number.isFinite(keepTop) || keepTop <= 0 || keepTop > 1) { console.error('keep-top 应为 (0,1]'); process.exit(1); }
-  const man = JSON.parse(fs.readFileSync(MANIFEST, 'utf8'));
-  const hit = man.find(x => x.idx === idx);
-  if (!hit) { console.error('清单里没有编号 ' + idx + '（先跑一次抓取）'); process.exit(1); }
-  dl(hit.url, TMP);
-  const { createCanvas, loadImage } = require('@napi-rs/canvas');
-  const im = await loadImage(TMP);
-  const srcH = Math.max(1, Math.floor(im.height * keepTop));
-  const RATIO = 3 / 4.1;
-  let w = Math.min(im.width, Math.floor(srcH * RATIO));
-  let h = Math.floor(w / RATIO);
-  if (h > srcH) { h = srcH; w = Math.floor(h * RATIO); }
-  const c = createCanvas(w, h);
-  c.getContext('2d').drawImage(im, -Math.floor((im.width - w) / 2), -Math.floor((srcH - h) / 2));
-  fs.mkdirSync(path.dirname(PICKED), { recursive: true });
-  fs.writeFileSync(PICKED, c.toBuffer('image/jpeg', 92));
-  console.log(`已入库 ${PICKED}（${w}x${h}，取上部 ${(keepTop * 100).toFixed(0)}%，JPEG q92）`);
-  console.log('下一步：改名到 anime_research/covers/<角色名>.jpg，并在 research JSON 的 cover/portrait 里引用');
-}
-
 (async () => {
   const argv = process.argv.slice(2);
-  // 统一解析入口，只把已规范化的原始值传入业务函数
   const pickI = argv.indexOf('--pick');
   if (pickI >= 0) {
-    const rawIdx = String(parseInt(argv[pickI + 1], 10)).padStart(2, '0');
+    // 入库（内联，不设独立入口）：编号只允许两位数字；读写的三个文件路径全为常量
+    const idx = String(parseInt(argv[pickI + 1], 10)).padStart(2, '0');
+    if (!/^[0-9]{2}$/.test(idx)) { console.error('编号非法（应为两位数字）：' + idx); process.exit(1); }
     const ktI = argv.indexOf('--keep-top');
-    const rawKeep = ktI > -1 ? Number(argv[ktI + 1]) : 1;
-    return pick(rawIdx, rawKeep);
+    const keep = ktI > -1 ? Number(argv[ktI + 1]) : 1;
+    if (!Number.isFinite(keep) || keep <= 0 || keep > 1) { console.error('keep-top 应为 (0,1]'); process.exit(1); }
+    const man = JSON.parse(fs.readFileSync(MANIFEST, 'utf8'));
+    const hit = man.find(x => x.idx === idx);
+    if (!hit) { console.error('清单里没有编号 ' + idx + '（先跑一次抓取）'); process.exit(1); }
+    dl(hit.url, TMP);
+    const { createCanvas, loadImage } = require('@napi-rs/canvas');
+    const im = await loadImage(TMP);
+    const srcH = Math.max(1, Math.floor(im.height * keep));
+    const RATIO = 3 / 4.1;
+    let w = Math.min(im.width, Math.floor(srcH * RATIO));
+    let h = Math.floor(w / RATIO);
+    if (h > srcH) { h = srcH; w = Math.floor(h * RATIO); }
+    const c = createCanvas(w, h);
+    c.getContext('2d').drawImage(im, -Math.floor((im.width - w) / 2), -Math.floor((srcH - h) / 2));
+    fs.mkdirSync(COVERS, { recursive: true });
+    fs.writeFileSync(PICKED, c.toBuffer('image/jpeg', 92));
+    console.log(`已入库 ${PICKED}（${w}x${h}，取上部 ${(keep * 100).toFixed(0)}%，JPEG q92）`);
+    console.log('下一步：改名到 anime_research/covers/<角色名>.jpg，并在 research JSON 的 cover/portrait 里引用');
+    return;
   }
   const tag = argv.filter(a => !a.startsWith('--'))[0];
   if (!tag) { console.error('用法: node fetch_candidates.js <safebooru_tag>'); process.exit(1); }
