@@ -22,7 +22,11 @@ let chars = new Set();
 function add(s) { if (s) for (const c of String(s)) chars.add(c); }
 
 // 基础数据
-const base = JSON.parse(fs.readFileSync(path.join(ROOT, 'anime_base.json'), 'utf8'));
+const BASE_FILE = path.join(ROOT, 'anime_base.json');
+if (!fs.existsSync(BASE_FILE)) {
+  console.error('未找到 ' + BASE_FILE + ' ——请先跑 npm run base（模式 A 合成）或检查 config.json 的 root'); process.exit(1);
+}
+const base = JSON.parse(fs.readFileSync(BASE_FILE, 'utf8'));
 for (const [k, v] of Object.entries(base)) {
   add(k); add(v.title); add(v.folder);
   for (const t of v.titles || []) add(t);
