@@ -1,5 +1,19 @@
 # Changelog
 
+## 1.4.9
+
+按高星 skill（[anthropics/skills](https://github.com/anthropics/skills)、[mattpocock/Skills](https://github.com/mattpocock/Skills)、[tt-a1i/archify](https://github.com/tt-a1i/archify)）的共性做法做的五处改进：
+
+- **README 新增「为什么做它（四个踩过的坑）」**：把功能清单换成失败模式——① 目录页码手工排一定会错 → 两轮渲染 + 页码反查 + 收敛断言；② 中文字体直嵌会缺字/体积失控 → 字体子集内嵌 + OFL 署名；③ 海报极易张冠李戴 → 官方渠道优先 + 逐张目检 + 来源台账；④ 版权与隐私翻车都在看不见的地方 → 封底默认声明 + 外发清理清单。**"没有它会怎样"比功能列表有说服力**
+- **README 安装矩阵补 DSH 一行**：`~/.dsh/skills/` **或** `~/.agents/skills/`（DSH 两个都读），并写明警告——同一个 skill 两处都放会重复加载、互相抢触发（实测结论）
+- **README 新增「适用范围与边界」**：显式的"故意不做"清单（tracker / 媒体库刮削 / 格式转换 / 正文写作 / 替用户判断授权 / 在线托管），并给出规模提示（5-20 部体验最好）
+- **`pack.js` 改为原子交付**：先全部写进 `_deliver.tmp/` → 交付前校验（PDF 存在且体积一致、交付说明与打包标记可解析）→ 通过才 `rename` 替换 `_deliver/`，失败**保留上一版**并回滚；同时引入稳定失败码 `[P1]`–`[P8]`。此前是直接往 `_deliver/` 写，中途失败会留下半成品
+- **`check` / `audit` 输出稳定错误码**：`[C1]`–`[C13]`（产物断言）与 `[A1]`–`[A10]`（数据完备度），并在 `evals/README.md` 附**错误码表**（含每个码的修法）。编号只增不改，便于在 issue 与对话里直接指认
+- 新增 **`template/SKILL.md`**：可复制的最小 skill 骨架（仿官方 template），附四条写 skill 的经验（入口 ≤10 KB、description 是触发词、同一份内容只放一处、把"每次都会错"的环节变成断言）
+- 修复：`evals/README.md` 的断言条数漏改为 13（1.4.6 那批只改了描述行）
+
+> 借鉴清单与出处见 README；未采纳的部分：badges / 多语言 README / skills.sh 分发属于推广面，与实现无关。
+
 ## 1.4.8
 
 - 结构（重要）：**`SKILL.md` 从 20.4 KB / 194 行瘦到 9.7 KB / 112 行**（−53%）。入口只留**执行流程 + 质检铁律 + 最硬的坑位 + 路由表**，细节拆成按需读的 reference —— 此前每次触发都要把 20 KB 全量吃进上下文（约 6-7k token），而多数场景用不到字段表和构建细节。这正是本仓库另一个 skill（`my-pc`：1.8 KB 入口 + 4 份 reference）已经在用的形态

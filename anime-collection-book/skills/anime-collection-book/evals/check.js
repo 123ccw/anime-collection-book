@@ -25,24 +25,24 @@ console.log('产物检查：项目根 = ' + ROOT + '\n');
 
 // ① base.json
 let base = null;
-try { base = JSON.parse(fs.readFileSync(P('anime_base.json'), 'utf8')); t('anime_base.json 可解析', true); }
-catch (e) { t('anime_base.json 可解析', false, e.message); }
+try { base = JSON.parse(fs.readFileSync(P('anime_base.json'), 'utf8')); t('[C1] anime_base.json 可解析', true); }
+catch (e) { t('[C1] anime_base.json 可解析', false, e.message); }
 const n = base ? Object.keys(base).length : 0;
-t('收录至少 1 部', n >= 1, '当前 ' + n + ' 部');
+t('[C2] 收录至少 1 部', n >= 1, '当前 ' + n + ' 部');
 
 // ② 每部都有 research JSON
 if (base) {
   const miss = Object.values(base).filter(r => !fs.existsSync(P('anime_research', r.folder + '.json'))).map(r => r.folder);
-  t('每部都有 research JSON', miss.length === 0, miss.join('、'));
+  t('[C3] 每部都有 research JSON', miss.length === 0, miss.join('、'));
 }
 
 // ③ HTML
 const htmlPath = P('anime_build', '番剧收藏简介.html');
 let html = '';
-try { html = fs.readFileSync(htmlPath, 'utf8'); t('HTML 已生成', true); }
-catch (e) { t('HTML 已生成', false, e.message); }
-t('HTML 无乱码替换符（U+FFFD）', html.indexOf('\uFFFD') < 0, '存在方块字，检查字体子集是否漏跑');
-t('HTML 含章节结构', html.includes('class="show"'));
+try { html = fs.readFileSync(htmlPath, 'utf8'); t('[C4] HTML 已生成', true); }
+catch (e) { t('[C4] HTML 已生成', false, e.message); }
+t('[C5] HTML 无乱码替换符（U+FFFD）', html.indexOf('\uFFFD') < 0, '存在方块字，检查字体子集是否漏跑');
+t('[C6] HTML 含章节结构', html.includes('class="show"'));
 
 // ③.5 封面（声明了封面且文件存在的部，构建必须把它复制成 anime_build/covers/showNN.jpg 并渲染进 HTML）
 if (base) {
@@ -62,25 +62,25 @@ if (base) {
   }
   if (bad.length) console.log('    · 封面异常：' + bad.join('、'));
   const imgCount = (html.match(/<img /g) || []).length;
-  t('封面图已渲染（无缺失 + img 数 ≥ 有效声明数）', bad.length === 0 && imgCount >= covDeclared,
+  t('[C7] 封面图已渲染（无缺失 + img 数 ≥ 有效声明数）', bad.length === 0 && imgCount >= covDeclared,
     'img=' + imgCount + ' 有效声明=' + covDeclared + (bad.length ? '；' + bad.join('、') : ''));
 }
 
 // ③.6 统计数字：不应出现首尾相同的年份区间（如 "2015-2015"）
 const dupSpan = html.match(/\b(\d{4})-\1\b/);
-t('无首尾相同的年份区间（如 2015-2015）', !dupSpan, dupSpan ? '命中：' + dupSpan[0] : '');
+t('[C8] 无首尾相同的年份区间（如 2015-2015）', !dupSpan, dupSpan ? '命中：' + dupSpan[0] : '');
 
 // ④ PDF
 const pdfPath = P('anime_build', '番剧收藏简介.pdf');
 let pdfSize = 0;
 try { pdfSize = fs.statSync(pdfPath).size; } catch (e) { /* 不存在 */ }
-t('PDF 已生成且大于 50KB', pdfSize > 51200, pdfSize ? pdfSize + 'B' : '不存在');
+t('[C9] PDF 已生成且大于 50KB', pdfSize > 51200, pdfSize ? pdfSize + 'B' : '不存在');
 
 // ⑤ 页码映射全命中
 try {
   const map = JSON.parse(fs.readFileSync(P('anime_build', '_pagemap.json'), 'utf8'));
-  t('页码映射条目数 = 收录部数', Object.keys(map).length === n, Object.keys(map).length + ' / ' + n);
-} catch (e) { t('页码映射存在且可解析', false, e.message); }
+  t('[C10] 页码映射条目数 = 收录部数', Object.keys(map).length === n, Object.keys(map).length + ' / ' + n);
+} catch (e) { t('[C10] 页码映射存在且可解析', false, e.message); }
 
 // ⑥ 目录页码 = 最终书签页码（两轮渲染稳定性的机器断言；目录印的是第 1 轮的页码，_pagemap.json 是第 2 轮实测）
 try {
@@ -93,7 +93,7 @@ try {
     const want = map[key] != null ? String(map[key]).padStart(3, '0') : '·';
     if (pg !== want) bad.push(key + '：目录 ' + pg + ' vs 实际 ' + want);
   }
-  t('目录页码与最终书签一致', rows.length > 0 && bad.length === 0,
+  t('[C11] 目录页码与最终书签一致', rows.length > 0 && bad.length === 0,
     rows.length === 0 ? '未从 HTML 解析到目录行（HTML 结构变了？）' : bad.slice(0, 3).join('；'));
 } catch (e) { /* pagemap 缺失时 ⑤ 已报错，不重复计失败 */ }
 
@@ -103,13 +103,13 @@ try {
   const prev = JSON.parse(fs.readFileSync(P('anime_build', '_pagemap.prev.json'), 'utf8'));
   const keys = [...new Set([...Object.keys(prev), ...Object.keys(cur)])].sort();
   const drift = keys.filter(k => prev[k] !== cur[k]).map(k => k + '：上轮 ' + prev[k] + ' → 本轮 ' + cur[k]);
-  t('两轮页码一致（已收敛）', drift.length === 0, drift.slice(0, 3).join('；'));
+  t('[C12] 两轮页码一致（已收敛）', drift.length === 0, drift.slice(0, 3).join('；'));
 } catch (e) {
-  t('两轮页码一致（已收敛）', false, '缺少 _pagemap.prev.json —— 请用 `npm run pipeline` 跑满两轮再验收（单轮产物无法判断是否收敛）');
+  t('[C12] 两轮页码一致（已收敛）', false, '缺少 _pagemap.prev.json —— 请用 `npm run pipeline` 跑满两轮再验收（单轮产物无法判断是否收敛）');
 }
 
 // ⑧ 封面封底页已生成
-t('封面封底页已生成', html.includes('cover-pg') && html.includes('back-pg'));
+t('[C13] 封面封底页已生成', html.includes('cover-pg') && html.includes('back-pg'));
 
 console.log('\n结果：' + pass + ' 通过，' + fail + ' 失败' + (fail ? '（回到 SKILL.md 的坑位清单排查）' : ''));
 process.exit(fail ? 1 : 0);

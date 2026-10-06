@@ -58,7 +58,7 @@ for (const rec of works) {
 
   if (!fs.existsSync(rFile)) {
     hard++;
-    console.log('✗ ' + name + '：没有调研稿（' + path.relative(ROOT, rFile) + '）');
+    console.log('✗ [A1] ' + name + '：没有调研稿（' + path.relative(ROOT, rFile) + '）');
     needFix.push(name + ' 缺调研稿');
     continue;
   }
@@ -66,7 +66,7 @@ for (const rec of works) {
   try { r = JSON.parse(fs.readFileSync(rFile, 'utf8')); }
   catch (e) {
     hard++;
-    console.log('✗ ' + name + '：调研稿 JSON 解析失败 —— ' + e.message);
+    console.log('✗ [A2] ' + name + '：调研稿 JSON 解析失败 —— ' + e.message);
     needFix.push(name + ' 调研稿坏 JSON');
     continue;
   }
@@ -85,8 +85,8 @@ for (const rec of works) {
   for (const kind of ['cover', 'portrait']) {
     if (!hasText(r[kind])) continue;
     const rel = String(r[kind]).replace(/\//g, path.sep);
-    if (rel.includes('..')) { issues.push(kind + ' 路径含 ..（会被拒绝）'); continue; }
-    if (!fs.existsSync(path.join(RDIR, rel))) issues.push(kind + ' 文件不存在：' + r[kind]);
+    if (rel.includes('..')) { issues.push('[A6] ' + kind + ' 路径含 ..（会被拒绝）'); continue; }
+    if (!fs.existsSync(path.join(RDIR, rel))) issues.push('[A6] ' + kind + ' 文件不存在：' + r[kind]);
   }
 
   // 剧透表与 units 对齐（anime 域的核心坑位）
@@ -96,38 +96,38 @@ for (const rec of works) {
     const unitNames = units.map((u) => u.name);
     const orphan = sops.filter((s) => s && s.name && !unitNames.includes(s.name)).map((s) => s.name);
     const lack = unitNames.filter((n) => !sops.some((s) => s && s.name === n));
-    if (orphan.length) issues.push('unit_synopses 里的名字不在 units 里：' + orphan.join('、') + '（这些不会渲染）');
-    if (lack.length) issues.push('units 里没有对应剧透的单元：' + lack.join('、') + '（该单元渲染成空）');
+    if (orphan.length) issues.push('[A7] unit_synopses 里的名字不在 units 里：' + orphan.join('、') + '（这些不会渲染）');
+    if (lack.length) issues.push('[A7] units 里没有对应剧透的单元：' + lack.join('、') + '（该单元渲染成空）');
   } else if (units.length > 1) {
     missingSug.push('unit_synopses（多单元却没有剧透表）');
   } else if (DOMAIN === 'anime' && !units.length) {
-    issues.push('anime 域缺 units（模式 A 必填；总览时间轴会丢列）');
+    issues.push('[A7] anime 域缺 units（模式 A 必填；总览时间轴会丢列）');
   }
 
   // 简介长度（文档要求 300-500 字）
   const syn = String(r.synopsis || '');
   if (hasText(r.synopsis)) {
-    if (syn.length < 120) issues.push('synopsis 只有 ' + syn.length + ' 字（规范 300-500 字，太短撑不起版面）');
-    else if (syn.length > 800) issues.push('synopsis ' + syn.length + ' 字（超过 800 字会挤版）');
+    if (syn.length < 120) issues.push('[A8] synopsis 只有 ' + syn.length + ' 字（规范 300-500 字，太短撑不起版面）');
+    else if (syn.length > 800) issues.push('[A8] synopsis ' + syn.length + ' 字（超过 800 字会挤版）');
   }
 
   // production 结构化解析（格式不符会降级为整段文本，不是错，但值得知道）
   if (hasText(r.production) && !/[：:].*[；;]/.test(String(r.production))) {
-    issues.push('production 未按"键：值；键：值"格式写 → 会降级为整段文本（不致命）');
+    issues.push('[A9] production 未按"键：值；键：值"格式写 → 会降级为整段文本（不致命）');
   }
 
   // accent 合法性
-  if (hasText(r.accent) && !/^#[0-9a-fA-F]{6}$/.test(String(r.accent))) issues.push('accent 不是 6 位 hex：' + r.accent);
+  if (hasText(r.accent) && !/^#[0-9a-fA-F]{6}$/.test(String(r.accent))) issues.push('[A10] accent 不是 6 位 hex：' + r.accent);
 
   const hasHard = missingReq.length || issues.some((s) => !s.includes('不致命'));
   if (hasHard) hard++; else if (missingSug.length || placeholders.length || issues.length || missingExtra.length) soft++;
 
   const mark = hasHard ? '✗' : (missingSug.length || placeholders.length || issues.length) ? '!' : '✓';
   console.log(mark + ' ' + name);
-  if (missingReq.length) console.log('    缺必填：' + missingReq.join('、'));
+  if (missingReq.length) console.log('    缺必填 [A3]：' + missingReq.join('、'));
   if (issues.length) issues.forEach((s) => console.log('    问题：' + s));
-  if (placeholders.length) console.log('    还是占位/未核实：' + placeholders.join('、'));
-  if (missingSug.length) console.log('    建议补：' + missingSug.join('、'));
+  if (placeholders.length) console.log('    还是占位/未核实 [A4]：' + placeholders.join('、'));
+  if (missingSug.length) console.log('    建议补 [A5]：' + missingSug.join('、'));
   if (missingExtra.length) console.log('    可选未给：' + missingExtra.join('、'));
   if (mark === '✓') console.log('    字段完备，封面/剧透表对齐');
   if (hasHard) needFix.push(name + '：' + (missingReq.length ? '缺 ' + missingReq.join('/') : issues[0]));
