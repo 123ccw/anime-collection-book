@@ -6,31 +6,30 @@ const path = require('path');
 const { pathToFileURL } = require('url');
 const { chromium } = require('playwright');
 
-// ---- 统一配置（同目录 config.json；缺失时回退默认值）----
-const CFG = (() => {
-  const f = path.join(__dirname, 'config.json');   // 静默回退会让人读到陌生的 root，这里必须出声
-  try { return JSON.parse(fs.readFileSync(f, 'utf8')); }
-  catch (e) {
-    console.warn('⚠ 读不到 ' + f + '（' + (e.code || e.message) + '）——请复制 config.example.json 为 config.json 并改 root；本次回退默认值');
-    return {};
-  }
-})();
-const ROOT = CFG.root || 'C:\\anime-book';   // 项目根（★在 config.json 里改）
+// ---- 统一配置（单文件唯一事实源：scripts/_config.js；支持 ANIME_BOOK_* 环境变量覆盖）----
+const { ROOT, BOOK } = require('./_config');
 const SRC = path.join(ROOT, 'anime_build');
 const DST = path.join(ROOT, 'anime_build');
-const NAME = '番剧收藏简介.html'; // 只渲染这一个文件
+const NAME = BOOK + '.html'; // 只渲染这一个文件
 const OUT_PDF = path.join(DST, NAME.replace(/\.html$/, '.pdf'));
 if (!fs.existsSync(path.join(SRC, NAME))) {
   console.error('未找到 ' + path.join(SRC, NAME) + ' ——请先跑 build_anime_html.js'); process.exit(1);
 }
 fs.mkdirSync(DST, { recursive: true });
 
+// CI / 容器里 Chromium 的沙箱常常起不来；--no-sandbox 只用于自测环境
+const NO_SANDBOX = process.argv.includes('--no-sandbox');
+const ARGS = ['--allow-file-access-from-files'].concat(NO_SANDBOX ? ['--no-sandbox', '--disable-dev-shm-usage'] : []);
+
 function esc(s) { return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
 
 (async () => {
   let browser, page;
-  try { browser = await chromium.launch({ headless: true, args: ['--allow-file-access-from-files'] }); }
-  catch (e) { browser = await chromium.launch({ channel: 'msedge', headless: true, args: ['--allow-file-access-from-files'] }); }
+  try { browser = await chromium.launch({ headless: true, args: ARGS }); }
+  catch (e) {
+    try { browser = await chromium.launch({ channel: 'msedge', headless: true, args: ARGS }); }
+    catch (e2) { browser = await chromium.launch({ headless: true, args: ARGS.concat(['--no-sandbox', '--disable-dev-shm-usage']) }); }
+  }
 
   const htmlPath = path.join(SRC, NAME);
   try {

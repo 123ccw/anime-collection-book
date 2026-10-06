@@ -3,22 +3,51 @@
 // 纯 fs 实现，无第三方依赖、不启动子进程
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 
-const CFG = (() => {
-  const f = path.join(__dirname, '..', 'scripts', 'config.json');
-  try { return JSON.parse(fs.readFileSync(f, 'utf8')); }
-  catch (e) {
-    console.warn('⚠ 读不到 ' + f + '（' + (e.code || e.message) + '）——请复制 config.example.json 为 config.json 并改 root；本次回退默认值');
-    return {};
-  }
-})();
-const ROOT = CFG.root || 'C:\\anime-book';
-const P = (...a) => path.join(ROOT, ...a);
+// ---- 统一配置（单文件唯一事实源：scripts/_config.js；支持 ANIME_BOOK_* 环境变量覆盖）----
+const cfgmod = require('../scripts/_config');
+const { ROOT, BOOK, P } = cfgmod;
+// 每次运行都写一份结构化收据：pack 会读它生成交付说明里的"核验状态表"
+const RECEIPT = P('anime_build', '_check.json');
 
 let pass = 0, fail = 0;
+const assertions = [];
 function t(name, cond, detail) {
+  const code = (name.match(/\[(C\d+)\]/) || [])[1] || null;
+  assertions.push({ code, name, ok: !!cond, detail: cond ? null : (detail || null) });
   if (cond) { pass++; console.log('  ✓ ' + name); }
   else { fail++; console.log('  ✗ ' + name + (detail ? ' —— ' + detail : '')); }
+}
+
+function sha256(file) {
+  try { return crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex').slice(0, 16); }
+  catch (e) { return null; }
+}
+function writeReceipt(exitCode) {
+  const receipt = {
+    version: 1,
+    type: 'check',
+    generatedAt: new Date().toISOString(),
+    root: ROOT,
+    book: BOOK,
+    exitCode,
+    counts: { pass, fail, total: assertions.length },
+    assertions,
+    failures: assertions.filter((a) => !a.ok).map((a) => a.code || a.name),
+    artifacts: {
+      html: sha256(P('anime_build', BOOK + '.html')),
+      pdf: sha256(P('anime_build', BOOK + '.pdf')),
+    },
+  };
+  try {
+    fs.mkdirSync(path.dirname(RECEIPT), { recursive: true });
+    fs.writeFileSync(RECEIPT, JSON.stringify(receipt, null, 1), 'utf8');
+    console.log('  收据 → ' + path.relative(ROOT, RECEIPT) + '（交付时 pack 会读它）');
+  } catch (e) {
+    console.warn('  ⚠ 收据写入失败（不影响结论）：' + e.message);
+  }
+  return receipt;
 }
 
 console.log('产物检查：项目根 = ' + ROOT + '\n');
@@ -37,7 +66,7 @@ if (base) {
 }
 
 // ③ HTML
-const htmlPath = P('anime_build', '番剧收藏简介.html');
+const htmlPath = P('anime_build', BOOK + '.html');
 let html = '';
 try { html = fs.readFileSync(htmlPath, 'utf8'); t('[C4] HTML 已生成', true); }
 catch (e) { t('[C4] HTML 已生成', false, e.message); }
@@ -71,7 +100,7 @@ const dupSpan = html.match(/\b(\d{4})-\1\b/);
 t('[C8] 无首尾相同的年份区间（如 2015-2015）', !dupSpan, dupSpan ? '命中：' + dupSpan[0] : '');
 
 // ④ PDF
-const pdfPath = P('anime_build', '番剧收藏简介.pdf');
+const pdfPath = P('anime_build', BOOK + '.pdf');
 let pdfSize = 0;
 try { pdfSize = fs.statSync(pdfPath).size; } catch (e) { /* 不存在 */ }
 t('[C9] PDF 已生成且大于 50KB', pdfSize > 51200, pdfSize ? pdfSize + 'B' : '不存在');
@@ -112,4 +141,5 @@ try {
 t('[C13] 封面封底页已生成', html.includes('cover-pg') && html.includes('back-pg'));
 
 console.log('\n结果：' + pass + ' 通过，' + fail + ' 失败' + (fail ? '（回到 SKILL.md 的坑位清单排查）' : ''));
+writeReceipt(fail ? 1 : 0);
 process.exit(fail ? 1 : 0);

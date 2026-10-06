@@ -11,10 +11,24 @@
 
 1. 改脚本后必须：`node --check <脚本>` 全过 + 在一个测试项目根跑通 `npm run pipeline && npm run check`（13 条断言全绿）
 2. 涉及 UI 文案变动的：跑一遍 `npm run sheet`，联络表目检无方块字/溢出（字体子集会自动并入 build 脚本文案，但请确认）
-3. 版本号改动需同步 5 处：`SKILL.md` frontmatter 的 `metadata.version`、`marketplace.json`、两个 `plugin.json`、`scripts/package.json`（`package-lock.json` 的根 `version` 跑 `npm i --package-lock-only` 交给 npm），并更新 `CHANGELOG.md`；CI 会自动校验这 5 处是否一致
-4. 提交信息用 Conventional Commits 风格（`feat:` / `fix:` / `docs:` / `chore:`）
-5. 不要提交 `node_modules/`、测试项目产物（`anime_build/`）与个人信息（片单、路径里的用户名等）
+3. 版本号只有一个权威源：`SKILL.md` frontmatter 的 `metadata.version`。改它之后跑
+   `node scripts/sync_version.js --fix` 同步其余清单，并用 `node scripts/sync_version.js --check` 复核
+   （CI 跑的是同一条命令；清单按 glob 发现，新增清单会被自动纳入）
+4. 顺手跑 `npm run lint`：它校验 frontmatter、SKILL.md 的引用完整性、以及"文档里写的断言条数/坑位数"是否与
+   `evals/check.js`、`references/pipeline.md` 实际一致——这三类是最容易跟着改动漂移的地方
+5. 提交信息用 Conventional Commits 风格（`feat:` / `fix:` / `docs:` / `chore:`）
+6. 不要提交 `node_modules/`、测试项目产物（`anime_build/`）与个人信息（片单、路径里的用户名等）
 
 ## 发布
 
-维护者发版流程：CHANGELOG 加条目 → 5 处版本号同步 → commit（`feat:`/`fix:`）→ 打 `vX.Y.Z` tag → GitHub Release。
+维护者发版流程：CHANGELOG 加条目 → `node scripts/sync_version.js --fix` → commit（`feat:`/`fix:`）→ 打 `vX.Y.Z` tag → GitHub Release。
+
+## CI 跑什么
+
+| job | 内容 |
+| --- | --- |
+| `syntax` | 全部脚本 `node --check` · 清单 JSON 合法 · 版本号一致 · `npm run lint` |
+| `fixture` | **真流程**：程序生成测试字体 → `evals/fixture/` 跑满两轮 `pipeline` → `check` → 三条负向测试（封面缺失报 `[C7]`、页码漂移报 `[C12]`、交付说明如实标注未核验） |
+
+第二条是防回归的主力：1.4.4 修掉的那批真 bug（未定义变量、断言恒真、pagemap 掐断 `&&` 链）`node --check` 一条都抓不到。
+本地复现这条流水线：见 `evals/README.md` 的「从零复现」（用 `ANIME_BOOK_*` 环境变量，不必改 `config.json`）。

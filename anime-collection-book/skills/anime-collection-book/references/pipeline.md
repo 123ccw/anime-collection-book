@@ -77,21 +77,22 @@ page.node.addAnnot(pdf.context.obj({
 ```
 - 中文：`pdf.registerFontkit(fontkit); embedFont(ttf, {subset:true})`
 
-## 五、踩坑清单
+## 五、踩坑清单（14 条）
 
-1. 分章页眉做不到 → 边距预留 + 盖章（见上）
-2. 负边距刊头画到上一页页尾（还会压断下一元素）
-3. 书签标题吞空格 → 去空格比对
-4. **ffmpeg 中文路径** `Illegal byte sequence`：cmd+chcp 65001 只能救输出，输入路径要用同卷 ASCII 临时目录中转；硬链接在 exFAT 分区不可用，直接复制
-5. **Windows 进程参数非 ASCII 转码**：全角搜索词走临时文件 + `curl --data-binary @file`
-6. **explorer 文件夹图标缓存顽固**：desktop.ini 改完不刷新 → 重启 explorer + 删 `%LOCALAPPDATA%\Microsoft\Windows\Explorer\iconcache*.db`
-7. Win11 文件夹缩略图：`IconArea_Image` 无效，用 `cover.ico`（PNG-in-ICO 容器）+ `IconResource=cover.ico,0`；ini/ico 设 Hidden/System，文件夹设 ReadOnly
-8. Hidden/System 属性文件 node fs 打不开（EPERM）→ 先用 PowerShell 清成 Normal
-9. 重发布内容删三处：数据源、HTML 中间产物、输出目录旧 PDF（渲染脚本不清空输出目录）
-10. agent 后台并发超限直接 killed，失败要排队补发；agent 报的统计数字要抽查复算
-11. 二次交付只覆盖唯一成品路径，别留两份同名新旧文件
-12. **本机直连维基返回空**（curl 全挂）→ 一切靠 tvly 服务端抓；中文查询必须走 stdin（直传参变乱码）
-13. **airdate 缺失会让总览时间轴静默丢列** → 渲染端必须做 units 兜底 + 定期检查 base 数据完整性
+1. **AniList 只用罗马字/英文名搜，拿到结果先核对 `title` 再用**（详见 §一）：中文/日文名当搜索词在各接口表现不一；按记忆猜 id 更危险。**这条是"名字搜索必串味"的第一道闸门**，写在这里以防只读本节的人漏掉
+2. 分章页眉做不到 → 边距预留 + 盖章（见上）
+3. 负边距刊头画到上一页页尾（还会压断下一元素）
+4. 书签标题吞空格 → 去空格比对
+5. **ffmpeg 中文路径** `Illegal byte sequence`：cmd+chcp 65001 只能救输出，输入路径要用同卷 ASCII 临时目录中转；硬链接在 exFAT 分区不可用，直接复制
+6. **Windows 进程参数非 ASCII 转码**：全角搜索词走临时文件 + `curl --data-binary @file`
+7. **explorer 文件夹图标缓存顽固**：desktop.ini 改完不刷新 → 重启 explorer + 删 `%LOCALAPPDATA%\Microsoft\Windows\Explorer\iconcache*.db`
+8. Win11 文件夹缩略图：`IconArea_Image` 无效，用 `cover.ico`（PNG-in-ICO 容器）+ `IconResource=cover.ico,0`；ini/ico 设 Hidden/System，文件夹设 ReadOnly
+9. Hidden/System 属性文件 node fs 打不开（EPERM）→ 先用 PowerShell 清成 Normal
+10. 重发布内容删三处：数据源、HTML 中间产物、输出目录旧 PDF（渲染脚本不清空输出目录）
+11. agent 后台并发超限直接 killed，失败要排队补发；agent 报的统计数字要抽查复算
+12. 二次交付只覆盖唯一成品路径，别留两份同名新旧文件
+13. **本机直连维基返回空**（curl 全挂）→ 一切靠 tvly 服务端抓。**中文当参数直传是可以的**（1.4.4 实测，复测：`tvly search "葬送的芙莉莲 动画" --json` 回显的 `"query"` 与原词逐字一致）；真正的坑是**输出编码**——Windows 控制台默认 GBK，不设 `PYTHONIOENCODING=utf-8` 时 `--json` 会抛 `UnicodeEncodeError: 'gbk' codec`。stdin 写法也可用，但**不是必须**（本条原先写作"必须走 stdin"，既与 SKILL.md 冲突也与实测不符）
+14. **airdate 缺失会让总览时间轴静默丢列** → 渲染端必须做 units 兜底 + 定期检查 base 数据完整性
 
 ## 六、模式 B（本机收藏） extras
 

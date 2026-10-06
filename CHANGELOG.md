@@ -1,5 +1,50 @@
 # Changelog
 
+## 1.5.0
+
+1.4.9 借鉴的正是这三家的**表层做法**（失败模式叙事的 README、原子交付 + 稳定错误码、按需读的 reference 分级）。这一批继续往下挖，改的是**机制**——特别是"机器验不了的事，凭什么让人相信做过"。
+
+### 验收诚实性（借 archify 的 truthful output contract）
+
+archify 的收据把 `validate` / `browser-check` / `captures` / **perceptual review** 分开报，并在 SKILL.md 里写死"不得声称未执行的视觉检查"。本仓库此前恰恰缺这一层：`check` 只 `console.log` 不留凭证，`SKILL.md` 的"全页目检是硬要求"完全靠 agent 自觉。
+
+- `check` / `audit` 每次运行写结构化收据：`anime_build/_check.json`（13 条断言逐条结果 + 产物 sha256）、`_audit.json`（每部状态汇总）
+- `audit` 另写 **`anime_build/receipts/<作品名>.json`**（状态 `complete`/`soft`/`hard`/`missing`/`broken` + 调研稿哈希）——多部调研中断后这就是"哪几部做完了"的可续跑清单
+- `pack` 读收据，在交付说明里生成**核验状态表**：机器验过的两行给凭据，目检两行写「已声明 / 未声明」；收据缺失或成品比收据新（改完重渲没重跑验收）时标 `⚠ 无收据 / 过期`，并在终端打印"有未经核验的环节"
+- 新增 `pack --pages-reviewed` / `--covers-reviewed` **签署参数**：目检做了就签、没做就留在纸上。新增错误码 `[V1]`/`[V2]`（不阻断交付，挡的是"交付了"被读成"全书已核验"）
+
+### CI 从"只查语法"变成"跑真流程"
+
+1.4.4 修掉的那批真 bug（`COVERS` 未定义、封面断言恒真、pagemap 掐断 `&&` 链）`node --check` 一条都抓不到——CI 此前**没有任何机制能防这批回归**。
+
+- 新增 `evals/make_smoke_font.py`：用 fontTools 现场生成两枚极小测试 TTF，让管线在**没有 20 MB 正版字体**的机器上也能跑完（子集化 → 构建 → 渲染 → 页码反查一步不少）
+- `collect_fonts.js` 支持 `config.json` 的 `fonts` 覆盖缺省字体路径；`render_pw.js` 支持 `--no-sandbox` 与第三次启动兜底
+- CI 新增 `fixture` job：生成测试字体 → `evals/fixture/` 跑满两轮 `pipeline` → `check` → **三条负向测试**（封面缺失必须报 `[C7]`、页码漂移必须报 `[C12]`、交付说明必须如实标注未核验）
+
+### 配置与版本号的单一事实源
+
+- 新增 **`scripts/_config.js`**：所有脚本（含 `evals/check.js`、`audit.js`）共用一份配置读取，并支持 `ANIME_BOOK_ROOT` / `ANIME_BOOK_FONT_*` / `ANIME_BOOK_DOMAIN` / `ANIME_BOOK_TITLE` 等环境变量覆盖——CI 与临时自测不必再改坏本机 `config.json`
+- 新增 **`scripts/sync_version.js`**（`npm run version:check` / `version:fix`）：版本号按 glob **发现**清单，不再手写路径映射（1.4.3 的漂移与 ci.yml 里那张硬编码表，都是同一个失败模式）
+- 新增 **`evals/lint_skill.js`**（`npm run lint`）：校验 frontmatter（name 与目录名、description 触发语）、SKILL.md 的引用完整性、以及**文档里写的断言条数/坑位数是否与 `check.js`、`pipeline.md` 实际一致**。此前 CHANGELOG 声称跑过 `skills-ref validate`，但仓库里没有这个步骤（不可复现），现在有了零依赖的等价物
+
+### 调研契约（补上并发调研的空白）
+
+- 新增 **`references/research-contract.md`**：一部一代理、只准写自己那两个文件、给子代理的 prompt 必须含的六件事、回报格式、"汇报挂了但稿子写完了"的处理、连续失败两次就停、以及"成本主要在查证不在渲染"的规模建议
+- `fields.md` 补上 `receipts/` 的用法（续跑靠它）
+
+### 合规与文档
+
+- skill 信封内新增 **`LICENSE.txt`** 与 **`THIRD_PARTY_NOTICES.md`**（借 anthropics/skills 的形态：只拷技能目录也不会丢许可）；系统说明三类义务——随包依赖、**可替换的字体**（换字体要同步改 `credits`）、成品里的第三方素材
+- 文档一致性修复：
+  - `references/pipeline.md` 原写"中文查询必须走 stdin（直传参变乱码）"，**与 SKILL.md 冲突且与实测不符**（复测：`tvly search "葬送的芙莉莲 动画" --json` 回显的 `"query"` 逐字一致）——真正的坑是**输出编码**（GBK 控制台），已改写
+  - AniList「只用罗马字/英文名搜、拿到结果先核对 `title`」这条**第一道闸门**此前只在 pipeline.md §一，现补进 SKILL.md 坑位清单与 pipeline.md §五
+  - 坑位清单从 13 条补到 **14 条**，并给 §五 加标题标注条数，避免"侧栏 8 条 / 正文 13 条 / 实际 N 条"式的漂移
+  - 铁律第 5 条由「不编造：查不到就写未核实」改为可检查的**「每个字段要么带来源，要么写未核实」**（"不编造"对现代模型接近 no-op，测不出行为差异）
+- **修正一个潜在 bug**：`config.json` 的 `title` 此前只有 `build`/`pack` 当成输出文件名，而 `check`/`doctor`/`render_pw`/`contact_sheet`/`anime_pagemap`/`export_cards` 硬编码 `番剧收藏简介`——设了 `title` 的册子会在验收环节找错文件。现在全书统一以 `title` 为输出名，文档同步说明
+- README：新增「核验状态」一节、脚本表与文档分级表补新文件、许可一节指向 THIRD_PARTY_NOTICES；CONTRIBUTING：版本号流程改为 `sync_version.js`，并说明 CI 两个 job 各管什么
+
+> 借的三家：archify（诚实收据 / 视觉审查声明）· mattpocock/Skills（`sync-plugin-version.mjs` 式版本单一事实源、writing-for-agents 的 no-op 与否定式检查）· anthropics/skills（skill 信封自带 LICENSE + 第三方声明、每条 footgun 都在正文里）。
+
 ## 1.4.9
 
 按高星 skill（[anthropics/skills](https://github.com/anthropics/skills)、[mattpocock/Skills](https://github.com/mattpocock/Skills)、[tt-a1i/archify](https://github.com/tt-a1i/archify)）的共性做法做的五处改进：

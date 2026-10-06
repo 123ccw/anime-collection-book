@@ -19,20 +19,19 @@ function run(cmd, args, timeout) {
   } catch (e) { return null; }
 }
 
-// ---- 配置 ----
-const CFG_FILE = path.join(__dirname, 'config.json');
-let CFG = {};
+// ---- 配置（单文件唯一事实源：_config.js；支持 ANIME_BOOK_* 环境变量覆盖）----
+// doctor 特殊：配置坏了也要继续把其它项查完，所以用 soft 模式（只提示、不退出）
+const cfgmod = require('./_config').load({ soft: false });
+const CFG = cfgmod.CFG;
+const CONFIG_FILE = cfgmod.configPath;
 head('配置');
-if (!fs.existsSync(CFG_FILE)) {
-  no('找不到 ' + CFG_FILE, '复制 config.example.json 为 config.json，并把 root 改成你的项目根');
+if (cfgmod.configError) {
+  no('读不到 ' + CONFIG_FILE + '（' + (cfgmod.configError.code || cfgmod.configError.message) + '）',
+    '复制 config.example.json 为 config.json，并把 root 改成你的项目根');
 } else {
-  try {
-    CFG = JSON.parse(fs.readFileSync(CFG_FILE, 'utf8'));
-    ok('config.json 可解析');
-  } catch (e) {
-    no('config.json 解析失败：' + e.message, '它必须是合法 JSON（注意 Windows 路径要写成 C:\\\\a\\\\b）');
-  }
+  ok('config.json 可解析');
 }
+if (process.env.ANIME_BOOK_ROOT) ok('已用环境变量 ANIME_BOOK_ROOT 覆盖 root（CI / 自测模式）');
 const ROOT = CFG.root || '';
 if (!ROOT) {
   no('config.json 里没有 root', '填上项目根目录的绝对路径');
@@ -54,7 +53,7 @@ if (!ROOT) {
   if (fs.existsSync(base)) ok('anime_base.json 已生成');
   else if (fs.existsSync(names)) meh('有 names.txt 但还没有 anime_base.json', '跑 `npm run base`（问卷式合成）');
   else meh('项目根既没有 names.txt 也没有 anime_base.json', '模式 A：写 names.txt（一行一部）；模式 B：自备扫描脚本生成 anime_base.json');
-  if (fs.existsSync(path.join(ROOT, 'anime_build', '番剧收藏简介.pdf'))) ok('已有成品 PDF（可反复重跑）');
+  if (fs.existsSync(path.join(ROOT, 'anime_build', cfgmod.BOOK + '.pdf'))) ok('已有成品 PDF（可反复重跑）');
 }
 
 // ---- Node ----
@@ -66,10 +65,19 @@ else no('Node ' + process.versions.node + ' 太旧', '脚本用了 Node >=20 的
 // ---- 字体 ----
 head('字体（霞鹜文楷，自行下载后放进 <项目根>/fonts/）');
 if (ROOT && fs.existsSync(ROOT)) {
-  const need = ['LXGWWenKai-Regular.ttf', 'LXGWWenKai-Medium.ttf'];
-  const miss = need.filter((f) => !fs.existsSync(path.join(ROOT, 'fonts', f)));
-  if (!miss.length) ok('两个 TTF 都在');
-  else no('缺少 ' + miss.join('、'), 'GitHub Releases 下载 LXGW WenKai 的 Regular/Medium TTF 放进 ' + path.join(ROOT, 'fonts'));
+  const custom = CFG.fonts;
+  if (custom && (custom.regular || custom.medium)) {
+    // CI / 自测：用 config.json 的 fonts 指向测试字体，不要求霞鹜文楷
+    const cp = [custom.regular, custom.medium].filter(Boolean);
+    const gone = cp.filter((f) => !fs.existsSync(f));
+    if (!gone.length) meh('使用 config.json 的 fonts 覆盖（' + cp.length + ' 个自备字体）—— 仅用于 CI / 自测，成品请用霞鹜文楷或其它可商用中文字体');
+    else no('config.json 的 fonts 指向的文件不存在：' + gone.join('、'), '删掉 fonts 字段回到霞鹜文楷，或修正路径');
+  } else {
+    const need = ['LXGWWenKai-Regular.ttf', 'LXGWWenKai-Medium.ttf'];
+    const miss = need.filter((f) => !fs.existsSync(path.join(ROOT, 'fonts', f)));
+    if (!miss.length) ok('两个 TTF 都在');
+    else no('缺少 ' + miss.join('、'), 'GitHub Releases 下载 LXGW WenKai 的 Regular/Medium TTF 放进 ' + path.join(ROOT, 'fonts'));
+  }
   const subs = ['wk-sub-regular.woff2', 'wk-sub-medium.woff2'].filter((f) => fs.existsSync(path.join(ROOT, 'fonts', f)));
   if (subs.length === 2) ok('字体子集已生成（改文案后记得 `npm run pipeline` 重跑）');
   else meh('字体子集还没生成', '跑 `npm run pipeline` 里的第一步（collect_fonts）会自动生成');

@@ -9,18 +9,10 @@ const fs = require('fs');
 const path = require('path');
 const { execFileSync } = require('child_process');
 
-// ---- 统一配置（同目录 config.json；缺失时回退默认值）----
-const CFG = (() => {
-  const f = path.join(__dirname, 'config.json');   // 静默回退会让人读到陌生的 root，这里必须出声
-  try { return JSON.parse(fs.readFileSync(f, 'utf8')); }
-  catch (e) {
-    console.warn('⚠ 读不到 ' + f + '（' + (e.code || e.message) + '）——请复制 config.example.json 为 config.json 并改 root；本次回退默认值');
-    return {};
-  }
-})();
-const ROOT = CFG.root || 'C:\\anime-book';   // 项目根（★在 config.json 里改）
-const TTF_R = path.join(ROOT, 'fonts', 'LXGWWenKai-Regular.ttf');
-const TTF_M = path.join(ROOT, 'fonts', 'LXGWWenKai-Medium.ttf');
+// ---- 统一配置（单文件唯一事实源：scripts/_config.js；支持 ANIME_BOOK_* 环境变量覆盖）----
+const { CFG, ROOT } = require('./_config');
+const TTF_R = (CFG.fonts && CFG.fonts.regular) || path.join(ROOT, 'fonts', 'LXGWWenKai-Regular.ttf');
+const TTF_M = (CFG.fonts && CFG.fonts.medium) || path.join(ROOT, 'fonts', 'LXGWWenKai-Medium.ttf');
 const OUT_R = path.join(ROOT, 'fonts', 'wk-sub-regular.woff2');
 const OUT_M = path.join(ROOT, 'fonts', 'wk-sub-medium.woff2');
 const CHARS_TXT = path.join(ROOT, 'fonts', 'wk_chars.txt');
@@ -90,6 +82,7 @@ if (!PY) { console.error('未找到带 fonttools+brotli 的 Python。请先执�
 for (const ttf of [TTF_R, TTF_M]) {
   if (!fs.existsSync(ttf)) {
     console.error('未找到字体 ' + ttf + ' ——请把 LXGWWenKai-Regular.ttf / LXGWWenKai-Medium.ttf 放进 ' + path.join(ROOT, 'fonts'));
+    console.error('  （CI / 离线自测可用 config.json 的 fonts.regular / fonts.medium 指向 evals/make_smoke_font.py 生成的测试字体）');
     process.exit(1);
   }
 }

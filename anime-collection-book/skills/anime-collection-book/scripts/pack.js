@@ -5,30 +5,30 @@
 // 中途失败时上一版好产物原样保留（last-good），不会留下半成品。
 //
 // 用法: node pack.js [--out <目录>] [--no-gallery] [--force]
+//                      [--pages-reviewed] [--covers-reviewed]
 //   --no-gallery  不带高清整页图（体积大，发群/网盘时才需要）
 //   --force       目标目录已存在且不是打包产物时，允许覆盖（默认拒绝，防误删）
+//   --pages-reviewed / --covers-reviewed
+//                 声明"全页目检 / 封面逐张目检"已由 agent 亲自做过。这两个动作机器验不了
+//                 （`npm run sheet` 出的 PNG 是材料，不是证据），只能靠声明；不声明就在交付说明
+//                 里写"未声明"——**宁可不签，也不签假的**
 //
 // 失败码：P1 无成品 · P2 目标目录非本工具产物 · P3 残留目录归属不明 ·
 //        P4/P5 PDF 缺失或体积不符 · P6 交付说明未生成 · P7 打包标记坏了 · P8 替换失败
+//        V1/V2 验收收据缺失或过期（不阻断，只在交付说明里标注"未核验"）
 const fs = require('fs');
 const path = require('path');
 
-// ---- 统一配置（同目录 config.json；缺失时回退默认值）----
-const CFG = (() => {
-  const f = path.join(__dirname, 'config.json');   // 静默回退会让人读到陌生的 root，这里必须出声
-  try { return JSON.parse(fs.readFileSync(f, 'utf8')); }
-  catch (e) {
-    console.warn('⚠ 读不到 ' + f + '（' + (e.code || e.message) + '）——请复制 config.example.json 为 config.json 并改 root；本次回退默认值');
-    return {};
-  }
-})();
-const ROOT = CFG.root || 'C:\\anime-book';
-const BOOK = CFG.title && String(CFG.title).trim() ? String(CFG.title).trim() : '番剧收藏简介';
+// ---- 统一配置（单文件唯一事实源：scripts/_config.js；支持 ANIME_BOOK_* 环境变量覆盖）----
+const { CFG, ROOT, BOOK } = require('./_config');
 
 const argv = process.argv.slice(2);
 const opt = (name) => { const i = argv.indexOf('--' + name); return i >= 0 && argv[i + 1] && !argv[i + 1].startsWith('--') ? argv[i + 1] : null; };
 const NO_GALLERY = argv.includes('--no-gallery');
 const FORCE = argv.includes('--force');
+// agent 的目检声明：机器验不了，只能记为"已声明"（不声明就是"未声明"，绝不代填）
+const PAGES_REVIEWED = argv.includes('--pages-reviewed');
+const COVERS_REVIEWED = argv.includes('--covers-reviewed');
 
 const BLD = path.join(ROOT, 'anime_build');
 const OUT = opt('out') ? path.resolve(opt('out')) : path.join(ROOT, '_deliver');
@@ -39,6 +39,41 @@ const MARKER = '.pack-manifest.json';
 const PDF = path.join(BLD, BOOK + '.pdf');
 const HTML = path.join(BLD, BOOK + '.html');
 const kb = (n) => (n / 1024).toFixed(0) + ' KB';
+
+// ---- 核验收据：check / audit 每次运行都会写；这里只读、不改 ----
+function readReceipt(file) {
+  try {
+    const r = JSON.parse(fs.readFileSync(file, 'utf8'));
+    if (!r || typeof r !== 'object' || !r.generatedAt) return null;
+    return r;
+  } catch (e) { return null; }
+}
+const CHECK_RECEIPT = readReceipt(path.join(BLD, '_check.json'));
+const AUDIT_RECEIPT = readReceipt(path.join(BLD, '_audit.json'));
+
+// 成品比收据新 = 改完重渲却没重跑验收 → 收据过期（这是最常见的"假绿"）
+function staleness(receipt, artifact) {
+  if (!receipt) return 'missing';
+  let a = 0;
+  try { a = fs.statSync(artifact).mtimeMs; } catch (e) { return 'missing'; }
+  return new Date(receipt.generatedAt).getTime() < a ? 'stale' : 'fresh';
+}
+const CHECK_STATE = staleness(CHECK_RECEIPT, PDF);
+
+// 全页联络表是不是在这次成品之后出的（目检的"材料"是否对上这一版）
+let SHEET_AT = null;
+try {
+  const sheets = path.join(BLD, '_sheets');
+  const newest = fs.readdirSync(sheets).filter((f) => /\.png$/i.test(f))
+    .map((f) => fs.statSync(path.join(sheets, f)).mtimeMs).sort((x, y) => y - x)[0];
+  if (newest) SHEET_AT = new Date(newest).toISOString();
+} catch (e) { /* 没跑过 sheet 就没有 */ }
+
+function fmtState(state) {
+  if (state === 'fresh') return '✅ 有效';
+  if (state === 'stale') return '⚠ 过期（成品比收据新 —— 重跑 `npm run check`）';
+  return '❌ 缺失（跑 `npm run check`）';
+}
 
 if (!fs.existsSync(PDF)) {
   console.error('[P1] 未找到成品 ' + PDF + ' ——先跑 `npm run pipeline`（或至少 build → render）');
@@ -106,7 +141,7 @@ const pdfSize = fs.statSync(PDF).size;
     });
   } catch (e) { /* 没有 base 就不列清单 */ }
 
-  let srcLine = '未生成 —— 跑 `npm run sources` 后可把台账一并打包';
+  let srcLine = '未入库 —— 跑 `npm run sources` 后可把台账一并打包';
   if (hasSources) {
     try {
       const led = JSON.parse(fs.readFileSync(path.join(BLD, '_sources.json'), 'utf8'));
@@ -131,6 +166,41 @@ const pdfSize = fs.statSync(PDF).size;
   lines.push('| 高清整页图 | ' + (nGallery ? nGallery + ' 张' : '未包含' + (NO_GALLERY ? '（--no-gallery）' : '（未跑 npm run cards）')) + ' |');
   lines.push('| 来源台账 | ' + srcLine + ' |');
   lines.push('');
+
+  // ---- 核验状态：把"机器验过的"与"agent 声称看过的"分开放，不混为一谈 ----
+  const cCounts = (CHECK_RECEIPT && CHECK_RECEIPT.counts) || null;
+  const aCounts = (AUDIT_RECEIPT && AUDIT_RECEIPT.counts) || null;
+  const cFail = (CHECK_RECEIPT && CHECK_RECEIPT.failures && CHECK_RECEIPT.failures.length) || 0;
+  const unverified = [];
+  if (CHECK_STATE !== 'fresh' || cFail) unverified.push(cFail ? '产物断言有失败项' : '产物断言收据缺失/过期');
+  if (!PAGES_REVIEWED) unverified.push('全页目检未声明');
+  if (!COVERS_REVIEWED) unverified.push('封面目检未声明');
+  if (AUDIT_RECEIPT && aCounts && aCounts.hard) unverified.push('数据完备度有 ' + aCounts.hard + ' 项硬问题');
+
+  lines.push('## 核验状态');
+  lines.push('');
+  if (unverified.length) {
+    lines.push('> ⚠ **有未经核验的环节**：' + unverified.join(' · '));
+    lines.push('> 下面这几行如实反映实际做到哪一步；**不要删掉再对外声称已核验**。');
+    lines.push('');
+  }
+  lines.push('| 环节 | 结论 | 凭据 |');
+  lines.push('| --- | --- | --- |');
+  lines.push('| 产物断言 `[C1]-[C13]` | ' + (cCounts
+    ? (cFail ? '❌ ' + cCounts.pass + '/' + cCounts.total + '（失败 ' + (CHECK_RECEIPT.failures || []).join('、') + '）' : '✅ 全部通过（' + cCounts.total + ' 条）')
+    : '❌ 无收据') + ' | ' + fmtState(CHECK_STATE) + ' · `_check.json` |');
+  lines.push('| 数据完备度 `[A1]-[A10]` | ' + (aCounts
+    ? aCounts.complete + ' 部完备 / ' + aCounts.soft + ' 部可优化 / ' + aCounts.hard + ' 部硬问题'
+    : '未审计') + ' | ' + (AUDIT_RECEIPT ? '✅ ' + AUDIT_RECEIPT.generatedAt.slice(0, 19).replace('T', ' ') + ' · `_audit.json`' : '❌ 未跑 `npm run audit`') + ' |');
+  lines.push('| **全页目检** | ' + (PAGES_REVIEWED ? '已声明由 agent 逐页看过' : '未声明') + ' | ' + (SHEET_AT
+    ? '联络表 ' + SHEET_AT.slice(0, 19).replace('T', ' ') + (CHECK_STATE === 'fresh' && new Date(SHEET_AT).getTime() < new Date(CHECK_RECEIPT.generatedAt).getTime() ? ' ⚠ 早于本次成品' : '')
+    : '未跑 `npm run sheet`') + ' |');
+  lines.push('| **封面逐张目检** | ' + (COVERS_REVIEWED ? '已声明逐张核对过' : '未声明') + ' | 人工动作，无脚本凭据 |');
+  lines.push('');
+  lines.push('> 前两行是脚本产出的收据（可复现）；后两行是 agent 的声明（机器验不了）。');
+  lines.push('> 想补上声明：`npm run pack -- --pages-reviewed --covers-reviewed`。');
+  lines.push('');
+
   if (works.length) {
     lines.push('## 收录作品');
     lines.push('');
@@ -158,6 +228,15 @@ const pdfSize = fs.statSync(PDF).size;
     pages,
     works: works.length,
     files: copied.map((c) => c.file),
+    // 核验留痕：谁验的、验到哪一步、有没有过期（下一版交付前可对照）
+    verification: {
+      check: CHECK_RECEIPT ? { at: CHECK_RECEIPT.generatedAt, state: CHECK_STATE, counts: CHECK_RECEIPT.counts, failures: CHECK_RECEIPT.failures || [] } : null,
+      audit: AUDIT_RECEIPT ? { at: AUDIT_RECEIPT.generatedAt, counts: AUDIT_RECEIPT.counts } : null,
+      pagesReviewed: PAGES_REVIEWED,
+      coversReviewed: COVERS_REVIEWED,
+      sheetsAt: SHEET_AT,
+      unverified,
+    },
   }, null, 1));
 
   // ---- 交付前校验（不通过就绝不替换，上一版原样保留）----
@@ -193,6 +272,14 @@ const pdfSize = fs.statSync(PDF).size;
   if (nCards) console.log('  分享卡 ' + nCards + ' 张');
   if (nGallery) console.log('  高清整页图 ' + nGallery + ' 张');
   console.log('  交付说明.md' + (hasSources ? ' + 素材来源台账.md' : '（未含来源台账：先跑 npm run sources）'));
+  console.log('');
+  // 交付诚实性：把没做的环节明确报出来（别让"已交付"读成"已全部核验"）
+  if (unverified.length) {
+    console.log('⚠ 有未经核验的环节（交付说明里已如实标注）：');
+    unverified.forEach((u) => console.log('   · ' + u));
+  } else {
+    console.log('核验齐了：产物断言 + 数据审计 + 目检声明都在。');
+  }
   console.log('');
   console.log('发出去之前记得：' + (hasSources ? '确认台账里的图库来源已尽量回溯官方原图；' : '') + '别把 scripts/config.json、names.txt、anime_research/ 一起带上（含你的路径与片单）。');
 })();

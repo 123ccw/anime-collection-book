@@ -3,19 +3,21 @@
 // 用法: node evals/audit.js
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 
-const CFG = (() => {
-  const f = path.join(__dirname, '..', 'scripts', 'config.json');
-  try { return JSON.parse(fs.readFileSync(f, 'utf8')); }
-  catch (e) {
-    console.warn('⚠ 读不到 ' + f + '（' + (e.code || e.message) + '）——请复制 config.example.json 为 config.json 并改 root；本次回退默认值');
-    return {};
-  }
-})();
-const ROOT = CFG.root || 'C:\\anime-book';
-const DOMAIN = CFG.domain || 'anime';
-const P = (...a) => path.join(ROOT, ...a);
+function sha256(file) {
+  try { return crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex').slice(0, 16); }
+  catch (e) { return null; }
+}
+
+// ---- 统一配置（单文件唯一事实源：scripts/_config.js；支持 ANIME_BOOK_* 环境变量覆盖）----
+const cfgmod = require('../scripts/_config');
+const { ROOT, DOMAIN, P } = cfgmod;
 const RDIR = P('anime_research');
+// 收据：整本一份（pack 读）+ 每部一份（断点续跑时看"哪几部做完了"）
+const RECEIPT = P('anime_build', '_audit.json');
+const WORK_RECEIPTS = P('anime_build', 'receipts');
+const workReceipts = [];
 
 // 必填：缺了成品会出现肉眼可见的空缺 / 降级
 const REQUIRED = ['synopsis', 'source', 'genres', 'production', 'cover'];
@@ -60,6 +62,7 @@ for (const rec of works) {
     hard++;
     console.log('✗ [A1] ' + name + '：没有调研稿（' + path.relative(ROOT, rFile) + '）');
     needFix.push(name + ' 缺调研稿');
+    workReceipts.push({ work: name, status: 'missing', hash: null, missingRequired: REQUIRED.slice(), missingSuggested: [], placeholders: [], issues: ['[A1] 缺调研稿'] });
     continue;
   }
   let r;
@@ -68,6 +71,7 @@ for (const rec of works) {
     hard++;
     console.log('✗ [A2] ' + name + '：调研稿 JSON 解析失败 —— ' + e.message);
     needFix.push(name + ' 调研稿坏 JSON');
+    workReceipts.push({ work: name, status: 'broken', hash: null, missingRequired: [], missingSuggested: [], placeholders: [], issues: ['[A2] JSON 解析失败：' + e.message] });
     continue;
   }
 
@@ -131,6 +135,16 @@ for (const rec of works) {
   if (missingExtra.length) console.log('    可选未给：' + missingExtra.join('、'));
   if (mark === '✓') console.log('    字段完备，封面/剧透表对齐');
   if (hasHard) needFix.push(name + '：' + (missingReq.length ? '缺 ' + missingReq.join('/') : issues[0]));
+
+  workReceipts.push({
+    work: name,
+    status: hasHard ? 'hard' : (missingSug.length || placeholders.length || issues.length) ? 'soft' : 'complete',
+    hash: sha256(rFile),
+    missingRequired: missingReq,
+    missingSuggested: missingSug,
+    placeholders,
+    issues,
+  });
 }
 
 console.log('\n汇总：' + works.length + ' 部 —— ' + (works.length - hard - soft) + ' 部完备，' + soft + ' 部可优化，' + hard + ' 部有硬问题');
@@ -140,4 +154,35 @@ if (needFix.length) {
 }
 console.log('\n提示：本审计是建议性的，不阻断交付；`npm run check` 才是产物断言（13 条）。');
 console.log(hard ? '硬问题（缺调研稿/坏 JSON/缺必填/剧透表不对齐）会让成品出现肉眼可见的空缺 —— 建议补完再渲染。' : '没有硬问题，可以直接交付。');
-process.exit(hard ? 1 : 0);
+
+// ---- 收据：整本一份 + 每部一份（后者是"哪几部做完了"的可续跑清单）----
+const exitCode = hard ? 1 : 0;
+const receipt = {
+  version: 1,
+  type: 'audit',
+  generatedAt: new Date().toISOString(),
+  root: ROOT,
+  domain: DOMAIN,
+  exitCode,
+  counts: { works: works.length, complete: works.length - hard - soft, soft, hard },
+  needFix,
+  works: workReceipts,
+};
+try {
+  fs.mkdirSync(path.dirname(RECEIPT), { recursive: true });
+  fs.writeFileSync(RECEIPT, JSON.stringify(receipt, null, 1), 'utf8');
+  console.log('  收据 → ' + path.relative(ROOT, RECEIPT) + '（交付时 pack 会读它）');
+} catch (e) {
+  console.warn('  ⚠ 收据写入失败（不影响结论）：' + e.message);
+}
+try {
+  fs.mkdirSync(WORK_RECEIPTS, { recursive: true });
+  for (const w of workReceipts) {
+    const safe = String(w.work).replace(/[\\/:*?"<>|]/g, '_');
+    fs.writeFileSync(path.join(WORK_RECEIPTS, safe + '.json'), JSON.stringify({ ...w, generatedAt: receipt.generatedAt }, null, 1), 'utf8');
+  }
+  console.log('  每部收据 → ' + path.relative(ROOT, WORK_RECEIPTS) + '/（' + workReceipts.length + ' 份）');
+} catch (e) {
+  console.warn('  ⚠ 每部收据写入失败（不影响结论）：' + e.message);
+}
+process.exit(exitCode);

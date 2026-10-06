@@ -3,5 +3,18 @@
   "vroot": "",
   "domain": "anime",
   "title": "番剧收藏简介",
-  "credits": ""
+  "credits": "",
+
+  "_comment": [
+    "root   项目根（放 names.txt / anime_base.json / anime_research / fonts 的文件夹）",
+    "vroot  模式 B（本机视频库）才填；脚本内是 CFG.vroot，不要改脚本",
+    "domain anime（默认）/ novel",
+    "title  书名：封面/总览/封底显示，同时是输出文件名（anime_build/<title>.html 与 .pdf）",
+    "credits 封底“资料来源”行；留空用内置默认",
+    "fonts  可选，仅 CI / 离线自测：用自备 TTF 顶替霞鹜文楷（字形要与成品无关）",
+    "       形如 { \"regular\": \"<绝对路径>\", \"medium\": \"<绝对路径>\" }",
+    "       也可用环境变量覆盖：ANIME_BOOK_ROOT / ANIME_BOOK_FONT_REGULAR /",
+    "       ANIME_BOOK_FONT_MEDIUM / ANIME_BOOK_DOMAIN / ANIME_BOOK_TITLE / ANIME_BOOK_CREDITS",
+    "本文件是模板；复制为 config.json 后改（config.json 已在 .gitignore，外发前删掉）"
+  ]
 }
