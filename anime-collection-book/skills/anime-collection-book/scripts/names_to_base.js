@@ -4,16 +4,8 @@
 const fs = require('fs');
 const path = require('path');
 
-// ---- 统一配置（同目录 config.json；缺失时回退默认值）----
-const CFG = (() => {
-  const f = path.join(__dirname, 'config.json');   // 静默回退会让人读到陌生的 root，这里必须出声
-  try { return JSON.parse(fs.readFileSync(f, 'utf8')); }
-  catch (e) {
-    console.warn('⚠ 读不到 ' + f + '（' + (e.code || e.message) + '）——请复制 config.example.json 为 config.json 并改 root；本次回退默认值');
-    return {};
-  }
-})();
-const ROOT = CFG.root || 'C:\\anime-book';   // 项目根（★在 config.json 里改）
+// ---- 统一配置（单文件唯一事实源：scripts/_config.js；支持 ANIME_BOOK_* 环境变量覆盖）----
+const { ROOT } = require('./_config');
 const RDIR = path.resolve(ROOT, 'anime_research');
 if (!fs.existsSync(path.join(ROOT, 'names.txt'))) {
   console.error('未找到 ' + path.join(ROOT, 'names.txt') + ' ——请先写一行一项的名单（番剧名，或 novel 模式下的角色名，见 SKILL.md）'); process.exit(1);

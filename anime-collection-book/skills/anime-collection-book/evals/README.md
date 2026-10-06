@@ -24,6 +24,27 @@ npm run audit
 
 **渲染前跑一次最划算**——改 JSON 比重渲整本便宜得多。它退出码非 0 只表示"有硬问题"（缺调研稿 / 坏 JSON / 缺必填 / 剧透表不对齐），不代表交付失败。
 
+## 验收收据（check / audit 每次运行都会写）
+
+两个脚本都会把结构化收据写进 `anime_build/`：
+
+| 收据 | 内容 |
+| --- | --- |
+| `_check.json` | 13 条断言逐条结果、`exitCode`、被检查产物的 sha256 前 16 位 |
+| `_audit.json` | 每部状态汇总（`complete` / `soft` / `hard` / `missing` / `broken`）、`needFix` |
+| `receipts/<作品名>.json` | **每部一份**：状态 + 调研稿哈希 + 缺哪些字段 + 问题清单 |
+
+它们的用途有两个：
+
+1. **`npm run pack` 会读前两份**，在交付说明里生成「核验状态」表（见 `references/build.md`）。收据缺失、或成品比收据新（改完重渲没重跑 `check`）时，表上标 `⚠ 过期/无收据`——这是防"check 全绿"被当成"全书已核验"的机制。
+2. **做多部作品时，`receipts/` 就是可续跑清单**：中断后只挑 `hard` 与 `missing` 重做，不用重新扫全书。派子代理的契约见 `references/research-contract.md`。
+
+## CI 跑的是**真流程**（不只是语法检查）
+
+`.github/workflows/ci.yml` 的 fixture job 会：程序生成两枚极小测试字体（`make_smoke_font.py`，无需下载霞鹜文楷）→ 跑满两轮 `pipeline` → `check` → 三条负向测试（封面缺失必须报 `[C7]`、页码漂移必须报 `[C12]`、交付说明必须如实标注未核验）。
+
+为什么值得单独建一条流水线：1.4.4 修掉的那批真 bug（`COVERS` 未定义、封面断言恒真、pagemap 掐断 `&&` 链）`node --check` 一条都抓不到。
+
 ## 从零复现（完整自测）
 
 `fixture/` 是一份**可复现的最小数据集**（2 部虚构作品：一部全字段、一部仅必填），用来验证"从零开始能不能跑通"。其中 `anime_research/covers/` 的两张封面是**程序生成的占位图**（`docs/preview-*.png` 即由这份数据渲染）——仓库不含任何第三方作品素材。
@@ -31,17 +52,30 @@ npm run audit
 `fixture-novel/` 是 **novel 领域包**的对应数据集（2 个虚构角色：**沈观澜** 含 franchise 伏笔表与 watch_order，**白鹭洲** 只给到 status/quote/accent/rating 一类常规可选字段）——验证标签切换与伏笔渲染。
 
 ```bash
-# 1. 建一个临时项目根（路径任意），把 fixture 内容拷进去，再把霞鹜文楷 Regular/Medium 两个 TTF 放进该根的 fonts/
+# 1. 建一个临时项目根（路径任意），把 fixture 内容拷进去，再把字体放进该根的 fonts/
 #    （fixture 不含字体，这步不能省）
-#    Windows: robocopy fixture "%TEMP%\anime-eval" /E      然后手动把两个 TTF 放进 fonts\
-#    POSIX  : mkdir -p /tmp/anime-eval/fonts && cp -r fixture/* /tmp/anime-eval/ && cp <两个 TTF> /tmp/anime-eval/fonts/
+#    Windows: robocopy fixture "%TEMP%\anime-eval" /E
+#    POSIX  : mkdir -p /tmp/anime-eval && cp -r fixture/* /tmp/anime-eval/
+#
+#    A. 有霞鹜文楷：把 LXGWWenKai-Regular.ttf / -Medium.ttf 放进 <根>/fonts/
+#    B. 没有（CI / 离线自测）：用程序生成测试字体，然后用环境变量指过去——
+#       python evals/make_smoke_font.py /tmp/anime-eval/fonts
+#       export ANIME_BOOK_FONT_REGULAR=/tmp/anime-eval/fonts/Smoke-Regular.ttf
+#       export ANIME_BOOK_FONT_MEDIUM=/tmp/anime-eval/fonts/Smoke-Medium.ttf
 
-# 2. 把 scripts/config.json 的 root 临时指向该目录，然后：
+# 2. 用环境变量把 root 指到该目录（不必改 config.json），然后：
+export ANIME_BOOK_ROOT=/tmp/anime-eval
 npm run base && npm run pipeline && npm run check
 
-# 3. 预期：pipeline 两轮页码一致；check 全绿；成品 PDF 共 7 页（实测）
-# 4. 把 config.json 的 root 改回你的正式项目根
+# 3. 预期：pipeline 两轮页码一致；check 全绿（13 条）；成品 PDF 共 7 页（实测）
+#    注意：测试字体的字形是方块占位、字宽与真字体不同，页数可能与正式字体不一致；
+#    check 关心的是"两轮是否收敛、封面是否落盘"，与字体无关。
 ```
+
+> `ANIME_BOOK_ROOT` / `ANIME_BOOK_FONT_REGULAR` / `ANIME_BOOK_FONT_MEDIUM` / `ANIME_BOOK_DOMAIN` / `ANIME_BOOK_TITLE`
+> 都由 `scripts/_config.js` 统一读取，优先级高于 `config.json`——CI 与临时自测靠它避免改坏本机配置。
+>
+> **测试字体只能用于自测**：字形是程序生成的占位轮廓，不能拿来做成品。
 
 > novel 自测：同样步骤换 `fixture-novel/`，且 config.json 需加 `"domain": "novel"` 与 `"title"`。预期：全部标签为角色/篇/章/伏笔回收；「连载中」状态徽章为绿色；沈观澜章末出现「伏笔回收 2/2 ——已全部回收 ✓」。
 
@@ -84,3 +118,7 @@ npm run base && npm run pipeline && npm run check
 | `[A9]` | `production` 未按「键：值；键：值」写 | 会被降级成整段文本（不致命） |
 | `[A10]` | `accent` 不是 6 位 hex | 形如 `#e0407e` |
 | `[P1]`–`[P8]` | `pack.js` 的交付失败码 | 见 `scripts/pack.js` 头部注释：P2 目标目录非本工具产物（加 `--force` 或换 `--out`）、P4/P5 PDF 缺失或复制不完整、P8 替换失败（已自动回滚） |
+| `[V1]` | 交付说明里「产物断言」一行显示 **无收据** 或 **过期** | 跑 `npm run check`（过期＝改完重渲后没重跑验收，成品比收据新） |
+| `[V2]` | 交付说明里「全页目检 / 封面逐张目检」显示 **未声明** | 这两件事机器验不了：真的逐页看过再用 `npm run pack -- --pages-reviewed --covers-reviewed` 签署；没看就让它写着「未声明」 |
+
+> `[V]` 系列不阻断交付，它挡的是**"交付了"被读成"全书已核验"**。想让这两行变绿，只有一条路：真的去做那件事。

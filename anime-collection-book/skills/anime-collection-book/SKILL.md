@@ -4,7 +4,7 @@ license: MIT
 compatibility: Requires Node.js >=20 with npm, Python 3 + fonttools/brotli (font subsetting), Playwright Chromium (or system Edge), curl and the Tavily CLI (tvly; Windows needs PYTHONIOENCODING=utf-8 for --json), and internet access for anime research (novel mode is offline).
 metadata:
   author: 123ccw
-  version: "1.4.9"
+  version: "1.5.0"
 description: Use when 用户想把番剧/动画做成"收藏册/图鉴/纪念册/简介 PDF"——可只给片名清单（清单也可来自对话上文或文件，无需本地视频文件），也可基于本机视频收藏库；TV/剧场版/OVA 及 Galgame 视觉小说的同类整理均适用。也用于把网文/小说的设定资料整理成"设定集/角色档案册/伏笔追踪手册/读者向无剧透图鉴 PDF"（数据来自用户本地稿件或笔记，离线完成）。产出杂志风 PDF：海报墙封面封底、无剧透简介（剧透独立成表）、结构化要点表、每部主题色章节、数说统计页、可点击目录与书签页脚，另可导出竖版分享卡 PNG。不用于：追番进度管理（这不是 tracker）、视频文件整理/重命名/媒体库刮削（Jellyfin/Emby/Plex 场景）、对已有 PDF 的格式转换、小说正文本身的写作或排版。
 ---
 
@@ -17,11 +17,12 @@ description: Use when 用户想把番剧/动画做成"收藏册/图鉴/纪念册
 | 你现在要做的事 | 读这个 |
 | --- | --- |
 | 写/补某部作品的调研 JSON | `references/fields.md` + `assets/research.template.json`（完整示例） |
+| **派出调研子代理（并发、分工、失败重试）** | `references/research-contract.md` |
 | 跑构建、渲染、验收、交付 | `references/build.md` |
 | 联网查证（tvly / AniList / 维基） | `references/pipeline.md` §一 数据源用法 |
 | 选封面 / 立绘，判断该用哪张图 | `references/image-selection.md` |
 | 交付前过一遍版权与隐私 | `references/compliance.md` |
-| 遇到具体报错，要完整踩坑清单（13 条） | `references/pipeline.md` |
+| 遇到具体报错，要完整踩坑清单（14 条） | `references/pipeline.md` |
 | 做小说设定集（novel 域） | `references/domain-novel.md` |
 
 ## 执行流程（五步，勿跳步）
@@ -30,10 +31,12 @@ description: Use when 用户想把番剧/动画做成"收藏册/图鉴/纪念册
 - [ ] ① 调研：`names.txt` → 每部一份 research JSON + 官方海报（**并发 ≤2**，一次 3-4 部省 token；字段见 `references/fields.md`）
 - [ ] ② 合成：`npm run base`（模式 A）
 - [ ] ③ 构建：`npm run pipeline`（字体子集 + 两轮「构建→渲染→页码反查」）
-- [ ] ④ 验收：`npm run audit`（数据完备度）→ `npm run check`（产物断言 13 条）→ **全页目检** → 封面逐张目视核对
-- [ ] ⑤ 交付：`npm run pack`（一键产出 `_deliver/`：PDF + HTML + 分享卡 + 来源台账 + 交付说明），细节见 `references/build.md`
+- [ ] ④ 验收：`npm run check`（**产物断言 13 条** [C1]-[C13]）→ `npm run audit`（数据完备度 [A1]-[A10]）→ **全页目检** → 封面逐张目视核对
+- [ ] ⑤ 交付：`npm run pack -- --pages-reviewed --covers-reviewed`（一键产出 `_deliver/`：PDF + HTML + 分享卡 + 来源台账 + 交付说明，说明里带**核验状态表**），细节见 `references/build.md`
 
 **④ 的全页目检是硬要求**：`npm run sheet` 出联络表 → **agent 亲自逐页读** `_sheets/` 的 PNG，核对空白页 / 溢出 / 封面张冠李戴 / 乱码。不能用脚本断言代替。（若你的环境另有视觉验收子代理，可作为可选增强接上——**它不是本 skill 的依赖**。）
+
+**目检做了就说做了、没做就说没做**：`pack` 的 `--pages-reviewed` / `--covers-reviewed` 是把这件事**记进交付说明**的唯一途径；不签就在交付说明里写「未声明」。这两件事机器验不了（`check` 只能证明产物存在、页码对），所以**别用"check 全绿"代替它，也别签没做过的声明**。
 
 ## 质检铁律（不可省略）
 
@@ -41,8 +44,8 @@ description: Use when 用户想把番剧/动画做成"收藏册/图鉴/纪念册
 2. **选图审美：有戏 > 清晰**：封面要有环境/有动态/构图完整；章节肖像 `portrait` 要背景干净的正脸立绘——两者审美相反。标准见 `references/image-selection.md`
 3. **主题色自动取自封面**：取色不满意时用 research 的 `accent` 覆盖；交付前目检各章刊头条与封面是否「色调打架」
 4. **全页联络表目检**（见上，硬要求）
-5. **不编造**：声优、集数、成就、日期查不到就写"未核实/以官网为准"
-6. **数值断言能复算就复算**（agent 报的统计数字要抽验）
+5. **每个字段要么带来源，要么写「未核实」**：`source` / `music` / `platforms` / `status` 这类查证型字段，调研稿里同时留下取得渠道（`npm run sources` 记图，文字在 JSON 里附 URL 或站点名）；查不到就写"未核实（截至 YYYY-MM）"，`npm run audit` 会把占位符逐条列出来
+6. **数值断言能复算就复算**：集数、卷数、评分、跨度年份，把数字在原始来源里再核一遍（agent 报的统计数字要抽验）
 7. **发册前做时效复核**：把每部的最新动态（续作官宣/定档/上映/放送进度）过一遍——"截至 YYYY-MM"写旧的册子一眼就显得没维护
 8. **改版/删内容前备份成品**
 
@@ -87,8 +90,11 @@ description: Use when 用户想把番剧/动画做成"收藏册/图鉴/纪念册
 
 ## 开工前必读的坑位（都是实测踩出来的）
 
-- **维基不要按固定小节名捞**：实测「主題歌」「网络播放」这两个标题在条目里**根本不存在**，音乐与平台信息在 `## 电视动画` 小节内、用「片头曲/片尾曲/放送」等词。**抓到正文先确认目标信息在场再解析，没命中就换更具体的查询或拆两次抓，不许静默跳过字段**（同一条查询两次返回的正文长度可能差数倍，偏短＝没覆盖到该小节）
-- **本机直连 zh.wikipedia.org 拿不到数据**（curl 返回空）——一切经 tvly 抓取；**Windows 上 tvly 输出 JSON 会撞控制台 GBK 编码**：先 `$env:PYTHONIOENCODING='utf-8'`（或 `chcp 65001`）再调用，中文当参数直传也可（实测）
+> 这里是**最硬的 9 条**；完整 14 条在 `references/pipeline.md` §五（编号稳定，可直接引用）。
+
+- **AniList 只用罗马字/英文名搜，拿到结果先核对返回的 `title` 再用**——中文/日文名当搜索词在各接口表现不一，按记忆猜 id 更危险（id 与作品的对应毫无规律）。这是"名字搜索必串味"的第一道闸门
+- **维基不要按固定小节名捞**：实测「主題歌」「网络播放」这两个标题在条目里**根本不存在**，音乐与平台信息在 `## 电视动画` 小节内、用「片头曲/片尾曲/放送」等词。**抓到正文先确认目标信息在场再解析，没命中就换更具体的查询或拆两次抓**（同一条查询两次返回的正文长度可能差数倍，偏短＝没覆盖到该小节；确实查不到就在 JSON 里写明"未核实"，让 `npm run audit` 能扫到）
+- **本机直连 zh.wikipedia.org 拿不到数据**（curl 返回空）——一切经 tvly 抓取；**Windows 上 tvly 输出 JSON 会撞控制台 GBK 编码**：先 `$env:PYTHONIOENCODING='utf-8'`（或 `chcp 65001`）再调用；中文当参数直传**可以**（实测，不必非要走 stdin）
 - **曲名/人名常挂在标题行的下一行**（`片尾曲` ⏎ `: "曲名"`）——过滤时连取后 1-2 行，否则数据截断
 - **`unit_synopses[].name` 必须与 `units[].name` 逐字一致**——不一致该单元渲染成空白（构建时会打印 ⚠，看到就回查名字）
 - **封面要选角色正脸海报**——AniList 本篇条目封面常是舞台远景/背影，翻 `relations` 里的 MOVIE 条目找干净竖图
@@ -96,17 +102,19 @@ description: Use when 用户想把番剧/动画做成"收藏册/图鉴/纪念册
 - **调研子代理并发 ≤2**（超发被杀）；代理挂掉先查它的产出文件落盘没有（常见"汇报时挂、稿子已写完"）
 - **airdate 缺失会让总览时间轴静默丢列**——用 units 最早日期兜底（脚本已内置；自备数据时留意）
 
-> 完整 13 条坑位与解法在 `references/pipeline.md`。
+> 完整 14 条坑位与解法在 `references/pipeline.md`。
 
 ## 环境依赖
 
 - **OS**：脚本按 **Windows** 优先编写；macOS/Linux 核心流程可用（python 自动探测 python3），Windows 专属步骤需自行适配
-- **Node ≥20** + `npm i`（playwright / pdfjs-dist / @napi-rs/canvas）；**Python 3** + `pip install fonttools brotli`；**霞鹜文楷 TTF** 放 `<项目根>/fonts/`
+- **Node ≥20** + `npm i`（playwright / pdfjs-dist / @napi-rs/canvas）；**Python 3** + `pip install fonttools brotli`
+- **中文字体**：缺省用**霞鹜文楷 TTF** 放 `<项目根>/fonts/`（OFL，需自行从上游 Releases 下载）；也可用 `config.json` 的 `fonts.regular` / `fonts.medium` 指向自备 TTF——**先确认它允许嵌入与再分发**，并同步改 `credits` 的署名
 - **取数工具**：`tvly`（Tavily CLI，Windows 要 `PYTHONIOENCODING=utf-8`）与 `curl`——都不随包提供
-- **agent 能力**：文件读写 + Shell + 联网搜索 + **多模态读图**（封面目检必需）。任何满足这四点的 agent（Claude Code / ZCode / Cursor 等）都能跑，无厂商绑定
+- **agent 能力**：文件读写 + Shell + 联网搜索 + **多模态读图**（封面目检必需）。任何满足这四点的 agent（Claude Code / ZCode / Cursor / DSH 等）都能跑，无厂商绑定
 - 模式 B 另需 ffmpeg（抽帧补封面；Windows 下中文路径要用 ASCII 临时目录中转）
 - 拿不准就先跑 `npm run doctor`：它一次把 node / python / 字体 / 浏览器 / curl / tvly / config 全查一遍并给出修法
+- 组件与字体的许可义务见同目录 `THIRD_PARTY_NOTICES.md`
 
 ## 详细版
 
-`references/` 下有 6 份文档：**fields**（调研字段）· **build**（构建/验收/交付）· **pipeline**（数据源用法 + 13 条坑位 + pdf-lib 盖章进阶）· **image-selection**（选图审美与法律红线）· **compliance**（版权与隐私）· **domain-novel**（小说设定集）。
+`references/` 下有 7 份文档：**fields**（调研字段）· **research-contract**（调研子代理的输入/产出/失败契约）· **build**（构建/验收/交付）· **pipeline**（数据源用法 + 14 条坑位 + pdf-lib 盖章进阶）· **image-selection**（选图审美与法律红线）· **compliance**（版权与隐私）· **domain-novel**（小说设定集）。

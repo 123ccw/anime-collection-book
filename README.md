@@ -89,7 +89,7 @@
 
 ## 快速开始
 
-1. 项目根目录（任意空文件夹）：`fonts/` 放入 [霞鹜文楷](https://github.com/lxgw/LxgwWenKai/releases) 的 Regular/Medium TTF
+1. 项目根目录（任意空文件夹）：`fonts/` 放入 [霞鹜文楷](https://github.com/lxgw/LxgwWenKai/releases) 的 Regular/Medium TTF（缺省字体；也可在 `config.json` 的 `fonts` 里换成自备 TTF，先确认它允许嵌入与再分发）
 2. 写 `names.txt`（一行一部番剧名），让 agent 按 `SKILL.md` 完成调研（产出 `anime_research/` 与 `anime_base.json`）
 3. 在 skill 的 `scripts/` 目录里：
    ```bash
@@ -97,10 +97,25 @@
    # 把 config.json 的 root 改成你的项目根，然后：
    npm run doctor                           # 环境自检（node/python/字体/浏览器/curl/tvly）
    npm run pipeline                         # 一键：字体子集 → 两轮构建渲染 → 页码核对
-   npm run audit                            # 数据完备度：哪部缺字段、哪些还写着"未核实"
-   npm run check                            # 产物断言（13 条：完整性 / 页码 / 两轮收敛）
+   npm run check                            # 产物断言（13 条：完整性 / 页码 / 两轮收敛）→ 写 _check.json
+   npm run audit                            # 数据完备度 → 写 _audit.json 与 receipts/<作品名>.json
    npm run sheet                            # 生成全页联络表（目检用）
+   npm run pack -- --pages-reviewed --covers-reviewed   # 交付（签署你确实做过的目检）
    ```
+   > 不想改 `config.json` 时，可用 `ANIME_BOOK_ROOT` 等环境变量覆盖（所有脚本统一读 `scripts/_config.js`）。
+
+## 核验状态：交付说明会写清"哪几步真做了"
+
+`npm run pack` 生成的交付说明带一节**核验状态**，把两类东西分开放——这是本 skill 唯一防"假绿"的机制：
+
+| 环节 | 凭据 |
+| --- | --- |
+| 产物断言 `[C1]-[C13]` | `anime_build/_check.json`（脚本产出，可复现） |
+| 数据完备度 `[A1]-[A10]` | `anime_build/_audit.json`（脚本产出，可复现） |
+| **全页目检** | `pack --pages-reviewed` 的**声明**（`npm run sheet` 的 PNG 是材料，不是证据） |
+| **封面逐张目检** | `pack --covers-reviewed` 的**声明** |
+
+没签就写「未声明」，收据比成品旧就标「⚠ 过期」。**机器验不了的事不假装验过**——想让它变绿只有一条路：真的去做。
 
 ## 脚本（skills/anime-collection-book/scripts/）
 
@@ -114,27 +129,30 @@
 | `contact_sheet.js` | 全页联络表（目检用，`npm run sheet`） |
 | `doctor.js` | 环境自检（`npm run doctor`；node/python/字体/浏览器/curl/tvly/配置一次查完） |
 | `sources.js` | 素材来源台账（`npm run sources`；记录每张图的渠道与出处，公开分享时核对授权用） |
-| `pack.js` | 一键交付（`npm run pack`；把 PDF/HTML/分享卡/来源台账 + 自动生成的交付说明归拢到 `_deliver/`） |
+| `pack.js` | 一键交付（`npm run pack`；把 PDF/HTML/分享卡/来源台账 + 自动生成的交付说明归拢到 `_deliver/`，说明里含核验状态表） |
+| `_config.js` | 配置单一事实源（`config.json` + `ANIME_BOOK_*` 环境变量；所有脚本共用） |
+| `sync_version.js` | 版本号校验/同步（`npm run version:check` / `version:fix`；按 glob 发现清单，不写死路径） |
 
-**配置**：所有脚本统一读 `config.json`（`root` = 项目根，`vroot` = 模式 B 视频库根）；日常一条 `npm run pipeline` 跑完。
+**配置**：所有脚本统一读 `scripts/_config.js`（`root` = 项目根，`vroot` = 模式 B 视频库根，`fonts` = 自测用字体）；日常一条 `npm run pipeline` 跑完。
 
 ## 文档分级（入口很轻，细节按需读）
 
-`SKILL.md` 只放**执行流程 + 质检铁律 + 最硬的坑位**（约 9.6 KB），细节拆到 `references/`，agent 按需读、不必全量吃进上下文：
+`SKILL.md` 只放**执行流程 + 质检铁律 + 最硬的坑位**（约 10 KB），细节拆到 `references/`，agent 按需读、不必全量吃进上下文：
 
 | 文档 | 什么时候读 |
 | --- | --- |
 | `references/fields.md` | 写某部作品的调研 JSON 时（字段表 + 逐字段说明） |
+| `references/research-contract.md` | **派调研子代理时**（并发上限、写哪些文件、失败重试、每部收据） |
 | `references/build.md` | 跑构建/渲染/验收/交付时（config 字段 + 全部命令 + 交付规矩） |
-| `references/pipeline.md` | 联网取数、遇到具体报错、要看 13 条完整坑位时 |
+| `references/pipeline.md` | 联网取数、遇到具体报错、要看 14 条完整坑位时 |
 | `references/image-selection.md` | 选封面/立绘、判断该用哪张图、法律红线 |
 | `references/compliance.md` | 交付前过版权与隐私（含来源台账用法、外发清理清单） |
 | `references/domain-novel.md` | 做小说设定集（novel 域）时 |
 
 ## 质检铁律
 
-封面必须让 agent 亲眼看（防张冠李戴）；查不到的信息写"未核实"，禁止编造；发布前全页目检。
-完整踩坑清单（13 条）与数据源用法见 [`references/pipeline.md`](anime-collection-book/skills/anime-collection-book/references/pipeline.md)。
+封面必须让 agent 亲眼看（防张冠李戴）；每个字段要么带来源、要么写「未核实」；发布前全页目检。
+完整踩坑清单（14 条）与数据源用法见 [`references/pipeline.md`](anime-collection-book/skills/anime-collection-book/references/pipeline.md)。
 
 ## 关于素材版权
 
@@ -159,9 +177,10 @@
 | `names.txt` | 你的片单 ＝ 观看偏好 |
 | `anime_research/` | 调研稿与从网上抓下来的图片 |
 
-这三样都不在版本库里（见 `.gitignore`），**但手动"拷贝整个文件夹"时会一起被带走**。顺手补一句好消息：生成的成品是干净的——实测 `番剧收藏简介.html` 与 `.pdf` 正文及元数据里都不含本机路径或用户名。
+这三样都不在版本库里（见 `.gitignore`），**但手动"拷贝整个文件夹"时会一起被带走**。顺手补一句好消息：生成的成品是干净的——实测 `<书名>.html` 与 `.pdf` 正文及元数据里都不含本机路径或用户名。交付说明里的**核验状态**也会如实标出没做的环节（见上文）。
 
 ## 许可
 
-- **本仓库代码**：MIT（见 [LICENSE](LICENSE)）
-- **使用时自备的字体**：霞鹜文楷（LXGW WenKai），SIL OFL 1.1 授权，版权归 **LXGW** 与上游 **The Klee Project Authors** 所有（基于 FONTWORKS「Klee One」衍生）。字体不进本仓库，需从 [GitHub Releases](https://github.com/lxgw/LxgwWenKai/releases) 自行下载；管线会子集化后嵌入你的成品，封底自动附版权署名（OFL 要求版权声明随字体软件分发，请勿删除）。
+- **本仓库代码**：MIT（见 [LICENSE](LICENSE)；skill 信封内另有一份 `LICENSE.txt`，**只拷技能目录也不会丢许可**）
+- **随包依赖与字体的义务**：见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) 与 skill 信封内的同名文件（playwright/pdfjs/canvas/fonttools/brotli 的许可，及"字体可替换"的注意事项）
+- **使用时自备的字体**：缺省为霞鹜文楷（LXGW WenKai），SIL OFL 1.1 授权，版权归 **LXGW** 与上游 **The Klee Project Authors** 所有（基于 FONTWORKS「Klee One」衍生）。字体不进本仓库，需从 [GitHub Releases](https://github.com/lxgw/LxgwWenKai/releases) 自行下载；管线会子集化后嵌入你的成品，封底自动附版权署名（OFL 要求版权声明随字体软件分发，请勿删除）。换成别的字体时，请确认其许可允许嵌入与再分发，并同步改 `credits` 的署名。

@@ -41,3 +41,5 @@
 ## 写完自查
 
 `npm run audit` 会逐部列出：缺必填 / 还是"未核实" / 建议补哪些 / 剧透表名字对不对得上 / 简介字数是否落在 300-500 / `production` 会不会被降级。**渲染前跑一次最划算**——改 JSON 比重渲整本便宜得多。
+
+它同时会写两份收据：`anime_build/_audit.json`（整本）与 `anime_build/receipts/<作品名>.json`（每部——状态 `complete` / `soft` / `hard` / `missing` / `broken` + 调研稿哈希）。**做多部时这是"哪几部做完了"的可续跑清单**，中断后只挑 `hard` 与 `missing` 重做。派调研子代理的分工与失败处理见 `references/research-contract.md`。

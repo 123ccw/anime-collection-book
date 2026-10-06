@@ -5,16 +5,8 @@ const fs = require('fs');
 const path = require('path');
 const { pathToFileURL } = require('url');
 
-// ---- 统一配置（同目录 config.json；缺失时回退默认值）----
-const CFG = (() => {
-  const f = path.join(__dirname, 'config.json');   // 静默回退会让人读到陌生的 root，这里必须出声
-  try { return JSON.parse(fs.readFileSync(f, 'utf8')); }
-  catch (e) {
-    console.warn('⚠ 读不到 ' + f + '（' + (e.code || e.message) + '）——请复制 config.example.json 为 config.json 并改 root；本次回退默认值');
-    return {};
-  }
-})();
-const ROOT = CFG.root || 'C:\\anime-book';
+// ---- 统一配置（单文件唯一事实源：scripts/_config.js；支持 ANIME_BOOK_* 环境变量覆盖）----
+const { ROOT, BOOK } = require('./_config');
 const BLD = path.join(ROOT, 'anime_build');
 const OUT_CARDS = path.join(BLD, '_cards');
 const OUT_GALLERY = path.join(BLD, '_gallery');
@@ -46,7 +38,7 @@ let cleanupBrowser = null;   // 异常路径也要收起浏览器，不依赖进
   }
 
   // ② 高清整页图（scale 2，联络表的低清图管目检，这批管发图）
-  const pdfPath = path.join(BLD, '番剧收藏简介.pdf');
+  const pdfPath = path.join(BLD, BOOK + '.pdf');
   if (fs.existsSync(pdfPath)) {
     fs.mkdirSync(OUT_GALLERY, { recursive: true });
     const pdfjs = await import('pdfjs-dist/legacy/build/pdf.mjs');

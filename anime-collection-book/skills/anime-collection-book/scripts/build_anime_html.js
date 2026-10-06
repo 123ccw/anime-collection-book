@@ -2,22 +2,14 @@
 // ★ 首次使用：改同目录 config.json 的 root（项目根 = 放 anime_base.json / anime_research / fonts 的文件夹）
 // 用法: node build_anime_html.js
 // 输入: ROOT/anime_base.json + ROOT/anime_research/*.json + ROOT/fonts/wk-sub-*.woff2（由 collect_fonts.js 生成）
-// 输出: ROOT/anime_build/番剧收藏简介.html（含 covers/ 封面副本）
+// 输出: ROOT/anime_build/<书名>.html（含 covers/ 封面副本）
 const fs = require('fs');
 const path = require('path');
 
-// ---- 统一配置（同目录 config.json；缺失时回退默认值）----
-const CFG = (() => {
-  const f = path.join(__dirname, 'config.json');   // 静默回退会让人读到陌生的 root，这里必须出声
-  try { return JSON.parse(fs.readFileSync(f, 'utf8')); }
-  catch (e) {
-    console.warn('⚠ 读不到 ' + f + '（' + (e.code || e.message) + '）——请复制 config.example.json 为 config.json 并改 root；本次回退默认值');
-    return {};
-  }
-})();
-const ROOT = CFG.root || 'C:\\anime-book';   // 项目根
+// ---- 统一配置（单文件唯一事实源：scripts/_config.js；支持 ANIME_BOOK_* 环境变量覆盖）----
+const { CFG, ROOT, BOOK } = require('./_config');
 const VROOT = CFG.vroot || '';               // 模式 B（本机视频库）才填；模式 A 留空
-const BOOK_TITLE = String(CFG.title || '番剧收藏简介');   // 书名（封面/总览/封底共用；输出文件名固定不变）
+const BOOK_TITLE = BOOK;   // 书名（封面/总览/封底共用；同时是输出文件名，全书统一）
 
 // ---- 领域包：anime（默认）/ novel ——界面标签整体切换，数据字段结构完全不变 ----
 // novel（小说设定集）：每"部"=一个角色/势力；units=登场卷篇(eps=章数)；franchise=伏笔表(collected=已回收)
@@ -590,7 +582,7 @@ ${chapters.join('\n')}
 ${backPage}
 </body></html>`;
 
-fs.writeFileSync(path.join(OUT, '番剧收藏简介.html'), html, 'utf8');
+fs.writeFileSync(path.join(OUT, BOOK + '.html'), html, 'utf8');
 
 // ---- 分享卡片页（独立文件，不进书；npm run cards 对每张截图成 PNG） ----
 const CARD_CSS = `
@@ -635,7 +627,7 @@ ${showMeta.filter(m => m.cover).map((m, i) => {
 fs.writeFileSync(path.join(OUT, 'share_cards.html'), cardsHtml, 'utf8');
 
 const missing = shows.filter(s => !research[s.folder]).map(s => s.folder);
-console.log(`built ${shows.length} chapters -> anime_build/番剧收藏简介.html`);
+console.log(`built ${shows.length} chapters -> anime_build/${BOOK}.html`);
 console.log(`share cards: ${showMeta.filter(m => m.cover).length} 张 -> anime_build/share_cards.html`);
 if (missing.length) console.log('no research for:', missing.join('、'));
 })().catch(e => { console.error('构建失败：', e.message); process.exit(1); });

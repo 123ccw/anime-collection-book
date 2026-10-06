@@ -1,6 +1,6 @@
 {
   "name": "anime-collection-book-scripts",
-  "version": "1.4.9",
+  "version": "1.5.0",
   "private": true,
   "description": "番剧收藏册 PDF 管线脚本（先 npm i；再改 config.json 的 root；然后 npm run pipeline）",
   "scripts": {
@@ -15,9 +15,12 @@
     "candidates": "node fetch_candidates.js",
     "check": "node ../evals/check.js",
     "audit": "node ../evals/audit.js",
+    "lint": "node ../evals/lint_skill.js",
     "doctor": "node doctor.js",
     "sources": "node sources.js",
-    "pack": "node pack.js"
+    "pack": "node pack.js",
+    "version:check": "node sync_version.js --check",
+    "version:fix": "node sync_version.js --fix"
   },
   "dependencies": {
     "@napi-rs/canvas": "^0.1.80",

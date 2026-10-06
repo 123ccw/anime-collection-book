@@ -5,6 +5,9 @@ on:
     branches: [main]
   pull_request:
 
+# 四道关：① 语法与清单 ② 版本号一致 ③ skill 信封校验 ④ fixture 跑真流程
+# 第 ④ 道是关键：1.4.4 修的那批真 bug（未定义变量、断言恒真、pagemap 掐断 && 链）
+# 全都是 ①②③ 抓不到的——只有真跑一遍 pipeline 才会现形。
 jobs:
   syntax:
     runs-on: ubuntu-latest
@@ -23,20 +26,106 @@ jobs:
       - name: 校验插件清单为合法 JSON
         run: |
           node -e "for (const p of ['.claude-plugin/marketplace.json','anime-collection-book/.claude-plugin/plugin.json','anime-collection-book/.zcode-plugin/plugin.json','anime-collection-book/skills/anime-collection-book/scripts/package.json']) { JSON.parse(require('fs').readFileSync(p,'utf8')); console.log('OK', p); }"
-      - name: 校验版本号 5 处一致
+      - name: 校验版本号一致（单一事实源：scripts/sync_version.js）
+        run: node anime-collection-book/skills/anime-collection-book/scripts/sync_version.js --check
+      - name: 校验 skill 信封（frontmatter / 引用完整性 / 文档数字与代码是否一致）
+        run: node anime-collection-book/skills/anime-collection-book/evals/lint_skill.js
+
+  fixture:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: 装脚本依赖（含 Chromium）
+        working-directory: anime-collection-book/skills/anime-collection-book/scripts
         run: |
-          node -e '
-          const fs = require("fs");
-          const md = fs.readFileSync("anime-collection-book/skills/anime-collection-book/SKILL.md", "utf8");
-          const v = (md.match(/^\s+version:\s*"([^"]+)"/m) || [])[1];
-          const places = {
-            "marketplace.json": JSON.parse(fs.readFileSync(".claude-plugin/marketplace.json","utf8")).plugins[0].version,
-            ".claude-plugin/plugin.json": JSON.parse(fs.readFileSync("anime-collection-book/.claude-plugin/plugin.json","utf8")).version,
-            ".zcode-plugin/plugin.json": JSON.parse(fs.readFileSync("anime-collection-book/.zcode-plugin/plugin.json","utf8")).version,
-            "scripts/package.json": JSON.parse(fs.readFileSync("anime-collection-book/skills/anime-collection-book/scripts/package.json","utf8")).version,
-          };
-          let bad = 0;
-          console.log("SKILL.md frontmatter =", v);
-          for (const [k, x] of Object.entries(places)) { const ok = x === v; if (!ok) bad++; console.log((ok ? "OK  " : "BAD ") + k + " = " + x); }
-          if (!v || bad) { console.error("版本号不一致：请同步 SKILL.md frontmatter + marketplace.json + 两个 plugin.json + scripts/package.json"); process.exit(1); }
-          '
+          npm ci
+          npx playwright install --with-deps chromium
+      - name: 装字体子集工具
+        run: python -m pip install fonttools brotli
+
+      - name: 准备 fixture 项目根（含程序生成的测试字体）
+        run: |
+          SKILL="$PWD/anime-collection-book/skills/anime-collection-book"
+          ROOT="$RUNNER_TEMP/acb-eval"
+          rm -rf "$ROOT" && mkdir -p "$ROOT"
+          cp -r "$SKILL/evals/fixture/." "$ROOT/"
+          # 用现场生成的极小测试字体代替霞鹜文楷：CI 不下载 20MB 正版字体，
+          # 但"字体子集化 → 构建 → 渲染 → 页码反查"这条链一步都不少。
+          python "$SKILL/evals/make_smoke_font.py" "$ROOT/fonts"
+          echo "ACB_ROOT=$ROOT" >> "$GITHUB_ENV"
+          echo "ACB_SKILL=$SKILL" >> "$GITHUB_ENV"
+
+      - name: 模式 A 合成 + 两轮 pipeline
+        working-directory: anime-collection-book/skills/anime-collection-book/scripts
+        env:
+          ANIME_BOOK_ROOT: ${{ env.ACB_ROOT }}
+          ANIME_BOOK_FONT_REGULAR: ${{ env.ACB_ROOT }}/fonts/Smoke-Regular.ttf
+          ANIME_BOOK_FONT_MEDIUM: ${{ env.ACB_ROOT }}/fonts/Smoke-Medium.ttf
+        run: |
+          node names_to_base.js
+          npm run pipeline
+
+      - name: 产物断言 + 数据审计（并留下收据）
+        working-directory: anime-collection-book/skills/anime-collection-book/scripts
+        env:
+          ANIME_BOOK_ROOT: ${{ env.ACB_ROOT }}
+        run: |
+          npm run check
+          # audit 对 fixture 是"建议性"的：测试小作品本来就只有必填字段
+          npm run audit || true
+          echo "--- 收据 ---"
+          node -e "const c=require(process.env.ANIME_BOOK_ROOT+'/anime_build/_check.json');console.log('check',JSON.stringify(c.counts),JSON.stringify(c.failures))"
+
+      - name: 负向测试 ① 封面缺失必须被抓住
+        working-directory: anime-collection-book/skills/anime-collection-book/scripts
+        env:
+          ANIME_BOOK_ROOT: ${{ env.ACB_ROOT }}
+        run: |
+          mv "$ANIME_BOOK_ROOT/anime_research/covers/测试小作品.jpg" "$RUNNER_TEMP/cover.bak"
+          set +e
+          npm run check > "$RUNNER_TEMP/negative1.log" 2>&1
+          code=$?
+          set -e
+          cat "$RUNNER_TEMP/negative1.log"
+          mv "$RUNNER_TEMP/cover.bak" "$ANIME_BOOK_ROOT/anime_research/covers/测试小作品.jpg"
+          if [ "$code" -eq 0 ]; then echo "::error::封面缺失时 check 竟然通过了"; exit 1; fi
+          grep -q '\[C7\]' "$RUNNER_TEMP/negative1.log" || { echo "::error::失败信息里没有 [C7]"; exit 1; }
+          echo "✓ 封面缺失 → check 失败并报 [C7]"
+
+      - name: 负向测试 ② 页码未收敛必须被抓住
+        working-directory: anime-collection-book/skills/anime-collection-book/scripts
+        env:
+          ANIME_BOOK_ROOT: ${{ env.ACB_ROOT }}
+        run: |
+          cp "$ANIME_BOOK_ROOT/anime_build/_pagemap.prev.json" "$RUNNER_TEMP/prev.bak"
+          node -e "const f=process.env.ANIME_BOOK_ROOT+'/anime_build/_pagemap.prev.json';const m=JSON.parse(require('fs').readFileSync(f,'utf8'));const k=Object.keys(m)[0];m[k]=m[k]+1;require('fs').writeFileSync(f,JSON.stringify(m))"
+          set +e
+          npm run check > "$RUNNER_TEMP/negative2.log" 2>&1
+          code=$?
+          set -e
+          cat "$RUNNER_TEMP/negative2.log"
+          cp "$RUNNER_TEMP/prev.bak" "$ANIME_BOOK_ROOT/anime_build/_pagemap.prev.json"
+          if [ "$code" -eq 0 ]; then echo "::error::页码漂移时 check 竟然通过了"; exit 1; fi
+          grep -q '\[C12\]' "$RUNNER_TEMP/negative2.log" || { echo "::error::失败信息里没有 [C12]"; exit 1; }
+          echo "✓ 页码漂移 → check 失败并报 [C12]"
+
+      - name: 负向测试 ③ 交付诚实性（无收据 / 未声明必须被标注）
+        working-directory: anime-collection-book/skills/anime-collection-book/scripts
+        env:
+          ANIME_BOOK_ROOT: ${{ env.ACB_ROOT }}
+        run: |
+          npm run check >/dev/null
+          mv "$ANIME_BOOK_ROOT/anime_build/_check.json" "$RUNNER_TEMP/check.bak"
+          node pack.js --out "$RUNNER_TEMP/pack-noreceipt" >/dev/null
+          grep -q '无收据' "$RUNNER_TEMP/pack-noreceipt/交付说明.md" || { echo "::error::缺收据时交付说明没有标注"; exit 1; }
+          grep -q '未声明' "$RUNNER_TEMP/pack-noreceipt/交付说明.md" || { echo "::error::未签署目检时没有标注未声明"; exit 1; }
+          mv "$RUNNER_TEMP/check.bak" "$ANIME_BOOK_ROOT/anime_build/_check.json"
+          node pack.js --out "$RUNNER_TEMP/pack-signed" --pages-reviewed --covers-reviewed >/dev/null
+          grep -q '已声明由 agent 逐页看过' "$RUNNER_TEMP/pack-signed/交付说明.md" || { echo "::error::签署后没有记录声明"; exit 1; }
+          echo "✓ 交付说明如实反映核验状态（缺收据 / 未声明 / 已声明三种都验过）"
