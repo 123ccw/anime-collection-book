@@ -1,0 +1,143 @@
+// 数据完备度检查（建议性，不阻断交付）：check.js 只管"产物在不在、页码对不对"，
+// 这个管"内容残不残"——哪部缺字段、哪些字段还写着"未核实"、剧透表名字对不对得上。
+// 用法: node evals/audit.js
+const fs = require('fs');
+const path = require('path');
+
+const CFG = (() => {
+  const f = path.join(__dirname, '..', 'scripts', 'config.json');
+  try { return JSON.parse(fs.readFileSync(f, 'utf8')); }
+  catch (e) {
+    console.warn('⚠ 读不到 ' + f + '（' + (e.code || e.message) + '）——请复制 config.example.json 为 config.json 并改 root；本次回退默认值');
+    return {};
+  }
+})();
+const ROOT = CFG.root || 'C:\\anime-book';
+const DOMAIN = CFG.domain || 'anime';
+const P = (...a) => path.join(ROOT, ...a);
+const RDIR = P('anime_research');
+
+// 必填：缺了成品会出现肉眼可见的空缺 / 降级
+const REQUIRED = ['synopsis', 'source', 'genres', 'production', 'cover'];
+// 可选但强烈建议：缺了板块会整块消失
+const SUGGESTED = ['music', 'platforms', 'status', 'watch_order', 'unit_synopses', 'title_jp', 'rating'];
+// 锦上添花
+const EXTRA = ['quote', 'accent', 'portrait', 'franchise', 'update'];
+const PLACEHOLDER = /未核实|待核实|以官网为准|以游戏内为准|TODO|暂缺|待补/;
+
+function hasText(v) {
+  if (v == null) return false;
+  if (Array.isArray(v)) return v.length > 0;
+  if (typeof v === 'object') return Object.keys(v).length > 0;
+  return String(v).trim().length > 0;
+}
+function isEmptyLike(v) {
+  if (!hasText(v)) return true;
+  const s = Array.isArray(v) ? JSON.stringify(v) : String(v);
+  return PLACEHOLDER.test(s);
+}
+
+const baseFile = P('anime_base.json');
+if (!fs.existsSync(baseFile)) { console.error('未找到 ' + baseFile + ' ——先跑 npm run base（模式 A）或自备扫描脚本（模式 B）'); process.exit(1); }
+let base;
+try { base = JSON.parse(fs.readFileSync(baseFile, 'utf8')); }
+catch (e) { console.error('anime_base.json 解析失败：' + e.message); process.exit(1); }
+
+const works = Object.values(base);
+console.log('数据完备度审计：项目根 = ' + ROOT);
+console.log('领域 = ' + DOMAIN + (DOMAIN === 'novel' ? '（novel：每"部"=一个角色/势力，franchise 承载伏笔表）' : '') + '，共 ' + works.length + ' 部\n');
+
+let hard = 0, soft = 0;
+const needFix = [];
+
+for (const rec of works) {
+  const name = rec.folder || rec.title || '(未命名)';
+  const rFile = path.join(RDIR, name + '.json');
+  const issues = [];
+  const missingReq = [], missingSug = [], missingExtra = [], placeholders = [];
+
+  if (!fs.existsSync(rFile)) {
+    hard++;
+    console.log('✗ ' + name + '：没有调研稿（' + path.relative(ROOT, rFile) + '）');
+    needFix.push(name + ' 缺调研稿');
+    continue;
+  }
+  let r;
+  try { r = JSON.parse(fs.readFileSync(rFile, 'utf8')); }
+  catch (e) {
+    hard++;
+    console.log('✗ ' + name + '：调研稿 JSON 解析失败 —— ' + e.message);
+    needFix.push(name + ' 调研稿坏 JSON');
+    continue;
+  }
+
+  for (const k of REQUIRED) {
+    if (!hasText(r[k])) missingReq.push(k);
+    else if (isEmptyLike(r[k])) placeholders.push(k);
+  }
+  for (const k of SUGGESTED) {
+    if (!hasText(r[k])) missingSug.push(k);
+    else if (isEmptyLike(r[k])) placeholders.push(k);
+  }
+  for (const k of EXTRA) if (!hasText(r[k])) missingExtra.push(k);
+
+  // 封面 / 肖像文件
+  for (const kind of ['cover', 'portrait']) {
+    if (!hasText(r[kind])) continue;
+    const rel = String(r[kind]).replace(/\//g, path.sep);
+    if (rel.includes('..')) { issues.push(kind + ' 路径含 ..（会被拒绝）'); continue; }
+    if (!fs.existsSync(path.join(RDIR, rel))) issues.push(kind + ' 文件不存在：' + r[kind]);
+  }
+
+  // 剧透表与 units 对齐（anime 域的核心坑位）
+  const units = Array.isArray(rec.units) ? rec.units : [];
+  const sops = Array.isArray(r.unit_synopses) ? r.unit_synopses : [];
+  if (sops.length) {
+    const unitNames = units.map((u) => u.name);
+    const orphan = sops.filter((s) => s && s.name && !unitNames.includes(s.name)).map((s) => s.name);
+    const lack = unitNames.filter((n) => !sops.some((s) => s && s.name === n));
+    if (orphan.length) issues.push('unit_synopses 里的名字不在 units 里：' + orphan.join('、') + '（这些不会渲染）');
+    if (lack.length) issues.push('units 里没有对应剧透的单元：' + lack.join('、') + '（该单元渲染成空）');
+  } else if (units.length > 1) {
+    missingSug.push('unit_synopses（多单元却没有剧透表）');
+  } else if (DOMAIN === 'anime' && !units.length) {
+    issues.push('anime 域缺 units（模式 A 必填；总览时间轴会丢列）');
+  }
+
+  // 简介长度（文档要求 300-500 字）
+  const syn = String(r.synopsis || '');
+  if (hasText(r.synopsis)) {
+    if (syn.length < 120) issues.push('synopsis 只有 ' + syn.length + ' 字（规范 300-500 字，太短撑不起版面）');
+    else if (syn.length > 800) issues.push('synopsis ' + syn.length + ' 字（超过 800 字会挤版）');
+  }
+
+  // production 结构化解析（格式不符会降级为整段文本，不是错，但值得知道）
+  if (hasText(r.production) && !/[：:].*[；;]/.test(String(r.production))) {
+    issues.push('production 未按"键：值；键：值"格式写 → 会降级为整段文本（不致命）');
+  }
+
+  // accent 合法性
+  if (hasText(r.accent) && !/^#[0-9a-fA-F]{6}$/.test(String(r.accent))) issues.push('accent 不是 6 位 hex：' + r.accent);
+
+  const hasHard = missingReq.length || issues.some((s) => !s.includes('不致命'));
+  if (hasHard) hard++; else if (missingSug.length || placeholders.length || issues.length || missingExtra.length) soft++;
+
+  const mark = hasHard ? '✗' : (missingSug.length || placeholders.length || issues.length) ? '!' : '✓';
+  console.log(mark + ' ' + name);
+  if (missingReq.length) console.log('    缺必填：' + missingReq.join('、'));
+  if (issues.length) issues.forEach((s) => console.log('    问题：' + s));
+  if (placeholders.length) console.log('    还是占位/未核实：' + placeholders.join('、'));
+  if (missingSug.length) console.log('    建议补：' + missingSug.join('、'));
+  if (missingExtra.length) console.log('    可选未给：' + missingExtra.join('、'));
+  if (mark === '✓') console.log('    字段完备，封面/剧透表对齐');
+  if (hasHard) needFix.push(name + '：' + (missingReq.length ? '缺 ' + missingReq.join('/') : issues[0]));
+}
+
+console.log('\n汇总：' + works.length + ' 部 —— ' + (works.length - hard - soft) + ' 部完备，' + soft + ' 部可优化，' + hard + ' 部有硬问题');
+if (needFix.length) {
+  console.log('\n建议先补这几部：');
+  needFix.slice(0, 10).forEach((s) => console.log('  · ' + s));
+}
+console.log('\n提示：本审计是建议性的，不阻断交付；`npm run check` 才是产物断言（13 条）。');
+console.log(hard ? '硬问题（缺调研稿/坏 JSON/缺必填/剧透表不对齐）会让成品出现肉眼可见的空缺 —— 建议补完再渲染。' : '没有硬问题，可以直接交付。');
+process.exit(hard ? 1 : 0);

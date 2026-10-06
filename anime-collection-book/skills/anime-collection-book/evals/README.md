@@ -12,6 +12,18 @@ npm run check
 
 > 「两轮页码一致」比的是 `_pagemap.prev.json`（上一轮）与 `_pagemap.json`（本轮）——只比"目录 vs 本轮映射"是自证的（两者同轮），查不出漂移。这个断言要求用 `npm run pipeline` 跑满两轮，单轮产物会直接报缺失。
 
+## 数据完备度审计（建议性，不阻断交付）
+
+```bash
+npm run audit
+```
+
+`check` 只管"产物在不在、页码对不对"，**不管内容残不残**：一部作品少了 `music` / `platforms` / `unit_synopses`，或者八个字段全写着"未核实"，`check` 照样全绿——你拿到的是"技术上合格、内容上残缺"的册子。
+
+`audit` 逐个作品列出：**缺必填**（synopsis / source / genres / production / cover）· **还是占位或未核实** · **建议补**（music / platforms / status / watch_order / unit_synopses / rating）· 封面与肖像文件是否真实存在 · `unit_synopses` 与 `units` 名字是否逐字对齐 · 简介字数是否落在 300-500 字 · `production` 是否会被降级成整段文本。最后给"建议先补这几部"。
+
+**渲染前跑一次最划算**——改 JSON 比重渲整本便宜得多。它退出码非 0 只表示"有硬问题"（缺调研稿 / 坏 JSON / 缺必填 / 剧透表不对齐），不代表交付失败。
+
 ## 从零复现（完整自测）
 
 `fixture/` 是一份**可复现的最小数据集**（2 部虚构作品：一部全字段、一部仅必填），用来验证"从零开始能不能跑通"。其中 `anime_research/covers/` 的两张封面是**程序生成的占位图**（`docs/preview-*.png` 即由这份数据渲染）——仓库不含任何第三方作品素材。

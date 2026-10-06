@@ -4,7 +4,7 @@ license: MIT
 compatibility: Requires Node.js >=20 with npm, Python 3 + fonttools/brotli (font subsetting), Playwright Chromium (or system Edge), curl and the Tavily CLI (tvly; Windows needs PYTHONIOENCODING=utf-8 for --json), and internet access for anime research (novel mode is offline).
 metadata:
   author: 123ccw
-  version: "1.4.6"
+  version: "1.4.7"
 description: Use when 用户想把番剧/动画做成"收藏册/图鉴/纪念册/简介 PDF"——可只给片名清单（清单也可来自对话上文或文件，无需本地视频文件），也可基于本机视频收藏库；TV/剧场版/OVA 及 Galgame 视觉小说的同类整理均适用。也用于把网文/小说的设定资料整理成"设定集/角色档案册/伏笔追踪手册/读者向无剧透图鉴 PDF"（数据来自用户本地稿件或笔记，离线完成）。产出杂志风 PDF：海报墙封面封底、无剧透简介（剧透独立成表）、结构化要点表、每部主题色章节、数说统计页、可点击目录与书签页脚，另可导出竖版分享卡 PNG。不用于：追番进度管理（这不是 tracker）、视频文件整理/重命名/媒体库刮削（Jellyfin/Emby/Plex 场景）、对已有 PDF 的格式转换、小说正文本身的写作或排版。
 ---
 
@@ -100,10 +100,11 @@ description: Use when 用户想把番剧/动画做成"收藏册/图鉴/纪念册
 
 进度总览（每步完成后勾选，勿跳步）：
 
+- [ ] ⓪ 自检：`npm run doctor`（环境齐全再开工；换机器/新机器时尤其别跳）
 - [ ] ① 调研：`names.txt` → 每部一份 research JSON（含官方海报；并发 ≤2，一次 3-4 部省 token）
 - [ ] ② 合成：`npm run base`（模式 A）
 - [ ] ③ 构建：`npm run pipeline`（字体子集 + 两轮构建渲染 + 页码核对）
-- [ ] ④ 验收：`npm run check`（自动断言）→ 全页目检（见下）→ 封面逐张目视核对
+- [ ] ④ 验收：`npm run audit`（数据完备度：缺字段 / 还是"未核实" / 剧透表对齐）→ `npm run check`（产物断言）→ 全页目检（见下）→ 封面逐张目视核对
 - [ ] ⑤ 交付：成品 PDF 覆盖到交付路径（只保留唯一一份）；**HTML 源一并保留**（`anime_build/番剧收藏简介.html`，用户可自行微调重渲）。**若用户只要成品 PDF**：可把 PDF 复制到项目根并清理 `anime_build/`、`anime_base.json`、`fonts/wk_*` 中间产物——但 `anime_research/`（调研成果+已核验图片，重做成本最高）与 `fonts/*.ttf`（重建必需，除非可从别处再取）必须保留
 
 ④ 全页目检的两种做法（按环境能力选择）：
@@ -127,11 +128,14 @@ description: Use when 用户想把番剧/动画做成"收藏册/图鉴/纪念册
 **一键（推荐）**：
 
 ```bash
+npm run doctor     # 环境自检（node / python+fonttools / 字体 / 浏览器 / curl / tvly / config；加 --net 顺带探网络）
 npm run pipeline   # 字体子集 → 两轮「构建→渲染→页码反查」，一条命令跑完
-npm run check      # 自动断言（产物完整性 / 页码全命中 / 无乱码字符）
+npm run check      # 产物断言（完整性 / 页码全命中 / 无乱码 / 两轮收敛）
+npm run audit      # 数据完备度（哪部缺字段、哪些还写着"未核实"、剧透表对不对得上）
 npm run sheet      # 生成全页联络表（目检用）
 npm run cards      # 导出收藏卡 PNG + 高清整页图（社交发图用，anime_build/_cards 与 _gallery）
 npm run candidates -- <safebooru_tag>   # 候选图对比（**兜底渠道**：官方渠道找不到或需横向比较时才用；--pick <编号> 取图入库，渠道优先级见 references/image-selection.md）
+npm run sources    # 出素材来源台账（anime_build/_sources.md）——公开分享时的自证材料
 ```
 
 **手动分步**（调试或理解原理时用，脚本都在同一目录）：

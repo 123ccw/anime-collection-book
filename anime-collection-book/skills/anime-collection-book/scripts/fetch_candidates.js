@@ -3,6 +3,7 @@
 //   node fetch_candidates.js <tag>                抓该角色的候选 → anime_build/_candidates/sheet.png + manifest.json
 //   node fetch_candidates.js --pick <编号>         取选中的原图入库 → anime_research/covers/picked.jpg
 //   可选 --keep-top 0.79                          只保上部（裁掉底部宣传字区）
+//   可选 --as <作品名>                             把这条件图记进来源台账时归属到该作品（见 npm run sources）
 // 产物用固定文件名（避免命令行输入进入文件路径）；入库后自行改名或在 research JSON 里引用 picked.jpg
 // 标签用 safebooru 写法（下划线，如 yanami_anna）；选图标准见 references/image-selection.md
 const fs = require('fs');
@@ -70,6 +71,8 @@ function fetchList(tag) {
     const ktI = argv.indexOf('--keep-top');
     const keep = ktI > -1 ? Number(argv[ktI + 1]) : 1;
     if (!Number.isFinite(keep) || keep <= 0 || keep > 1) { console.error('keep-top 应为 (0,1]'); process.exit(1); }
+    const asI = argv.indexOf('--as');
+    const asWork = asI > -1 && argv[asI + 1] && !argv[asI + 1].startsWith('--') ? argv[asI + 1] : '';
     const man = JSON.parse(fs.readFileSync(MANIFEST, 'utf8'));
     const hit = man.find(x => x.idx === idx);
     if (!hit) { console.error('清单里没有编号 ' + idx + '（先跑一次抓取）'); process.exit(1); }
@@ -86,8 +89,14 @@ function fetchList(tag) {
     fs.mkdirSync(COVERS, { recursive: true });
     fs.writeFileSync(PICKED, c.toBuffer('image/jpeg', 92));
     fs.rmSync(TMP, { force: true });   // 中间下载文件不再留着
+    // 记一条来源（合规台账）：渠道 = 图库 safebooru，出处 = 该帖原图地址
+    try {
+      require('./_ledger').add(ROOT, { work: asWork, kind: 'cover', channel: 'safebooru', url: hit.url, note: '候选图 --pick ' + idx });
+      console.log('已记入来源台账：safebooru' + (asWork ? ' · ' + asWork : '（未归属，下次可加 --as <作品名>）'));
+    } catch (e) { console.warn('⚠ 来源台账写入失败（不影响入库）：' + e.message); }
     console.log(`已入库 ${PICKED}（${w}x${h}，取上部 ${(keep * 100).toFixed(0)}%，JPEG q92）`);
     console.log('下一步：改名到 anime_research/covers/<角色名>.jpg，并在 research JSON 的 cover/portrait 里引用');
+    console.log('交付前记得 `npm run sources` 出台账（anime_build/_sources.md）');
     return;
   }
   const tag = argv.filter(a => !a.startsWith('--'))[0];

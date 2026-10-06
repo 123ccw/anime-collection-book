@@ -78,10 +78,15 @@ npm run candidates -- yanami_anna
 
 # ② 看图挑编号（拼图按封面瓦片比例裁切，所见即所得）
 
-# ③ 取选中的原图入库
-npm run candidates -- --pick 04 --keep-top 0.79
+# ③ 取选中的原图入库（加 --as <作品名> 可把这条来源归属到该作品）
+npm run candidates -- --pick 04 --keep-top 0.79 --as <作品名>
 #    → anime_research/covers/picked.jpg（固定名，--keep-top 裁掉底部宣传字区）
 #    然后改名到 <角色名>.jpg，在 research JSON 的 cover / portrait 里引用
+#    --pick 会自动往来源台账记一条「图库 safebooru + 原图地址」
+
+# ④ 官方渠道取的图，手工记一条来源（合规台账）
+npm run sources -- add --work <作品名> --kind cover --channel official --url <官方页面 URL>
+#    交付前：npm run sources → anime_build/_sources.md（公开分享时核对授权用）
 ```
 
 **目检不可省**：拼图出来后逐张看——是否本角色、表情是否有戏、构图是否完整、有无文字。名字相近的角色极易串味（Hades → Hades II 式错误）。

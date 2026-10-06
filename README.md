@@ -62,8 +62,10 @@
    ```bash
    npm i                                    # 装依赖（首次）
    # 把 config.json 的 root 改成你的项目根，然后：
+   npm run doctor                           # 环境自检（node/python/字体/浏览器/curl/tvly）
    npm run pipeline                         # 一键：字体子集 → 两轮构建渲染 → 页码核对
-   npm run check                            # 自动断言（产物完整性 / 页码全命中 / 无乱码）
+   npm run audit                            # 数据完备度：哪部缺字段、哪些还写着"未核实"
+   npm run check                            # 产物断言（13 条：完整性 / 页码 / 两轮收敛）
    npm run sheet                            # 生成全页联络表（目检用）
    ```
 
@@ -77,6 +79,8 @@
 | `render_pw.js` | Playwright 渲染 PDF（书签+页脚） |
 | `anime_pagemap.js` | 书签反查每部起始页（两轮渲染的核心） |
 | `contact_sheet.js` | 全页联络表（目检用，`npm run sheet`） |
+| `doctor.js` | 环境自检（`npm run doctor`；node/python/字体/浏览器/curl/tvly/配置一次查完） |
+| `sources.js` | 素材来源台账（`npm run sources`；记录每张图的渠道与出处，公开分享时核对授权用） |
 
 **配置**：所有脚本统一读 `config.json`（`root` = 项目根，`vroot` = 模式 B 视频库根）；日常一条 `npm run pipeline` 跑完。
 

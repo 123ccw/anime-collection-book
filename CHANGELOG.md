@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.4.7
+
+- 新增 `npm run doctor` —— **环境自检**：node 版本 / config 与项目根可写 / 两个 TTF / 字体子集 / Python+fontTools+brotli / Playwright Chromium 或系统 Edge / curl / tvly（Windows 上还会提醒 `PYTHONIOENCODING`）/ `--net` 顺带探 AniList、safebooru、维基连通性。此前环境问题都要"跑到第几步才炸"，用户第一次用往往就死在这里
+- 新增 `npm run audit` —— **数据完备度审计**（`evals/audit.js`）：逐个作品列出缺必填 / 还是"未核实" / 建议补哪些字段 / 封面与肖像文件是否存在 / `unit_synopses` 与 `units` 是否逐字对齐 / 简介字数 / `production` 是否会被降级成整段文本。`check` 只看"产物在不在、页码对不对"，**看不了"内容残不残"**——这是此前最大的验收盲区
+- 新增 `npm run sources` —— **素材来源台账**：`sources.js` + `_ledger.js` 记录每张图的「渠道 + 出处 URL + 取得日期」，交付时导出 `anime_build/_sources.md`。`--pick` 会自动记一条图库来源，官方渠道取的图用 `sources add` 手工记。**把合规从"文档里写一句仅个人收藏"变成流水线自动产出的自证材料**——公开分享或被人质疑时能拿出处
+- `fetch_candidates.js --pick` 增加 `--as <作品名>`，让取图来源能归属到具体作品
+- 文档：SKILL.md 执行流程加 ⓪ 自检步骤、验收步骤改为 `audit → check → 目检`；一键命令块补三条；README 快速开始与脚本表同步；`evals/README` 增加「数据完备度审计」一节；`image-selection.md` 工作流补"记来源"步骤
+
 ## 1.4.6
 
 - 技术债（速度）：`fetch_candidates.js` 的候选图**改为并发下载**（上限 4），`--pick` 收尾时删掉中间文件 `download.tmp`。原实现是 12 张逐张 `execFileSync` 同步下载、单张最长 90s，最坏要十几分钟且全程阻塞；顺带把"0 结果"的提示从「无候选（标签拼写？）」改成同时提示标签拼写**与网络可达性**（curl 的连接错误会被 `-s` 吞掉，容易把网络问题误诊成标签写错）
