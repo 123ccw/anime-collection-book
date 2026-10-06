@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.4.8
+
+- 结构（重要）：**`SKILL.md` 从 20.4 KB / 194 行瘦到 9.7 KB / 112 行**（−53%）。入口只留**执行流程 + 质检铁律 + 最硬的坑位 + 路由表**，细节拆成按需读的 reference —— 此前每次触发都要把 20 KB 全量吃进上下文（约 6-7k token），而多数场景用不到字段表和构建细节。这正是本仓库另一个 skill（`my-pc`：1.8 KB 入口 + 4 份 reference）已经在用的形态
+- 新增 `references/fields.md`（调研 JSON 字段表与逐字段说明）· `references/build.md`（config 字段、全部命令、验收与交付规矩）· `references/compliance.md`（版权与隐私、来源台账用法、外发清理清单）
+- 主文件新增「**先读哪份文档**」路由表：按当前要做的事指到对应 reference，减少无效读取
+- 新增 `npm run pack`（`scripts/pack.js`）—— **一键交付**：把成品 PDF、HTML 源、分享卡、高清整页图、来源台账，连同一份**自动生成的交付说明**（作品数/页数/文件清单/收录作品/台账摘要/版权提醒）归拢到 `<项目根>/_deliver/`。此前这套动作散在 SKILL.md 第⑤步里靠人工搬
+  - 安全策略：只清理"上一次 pack 留下的目录"（靠 `.pack-manifest.json` 识别），别的目录一律拒绝覆盖，除非显式 `--force`
+  - `--no-gallery` 可不带体积较大的高清整页图；结束时会提醒"别把 `config.json`/`names.txt`/`anime_research/` 一起带出去"
+- README 增加「文档分级」一节，说明每份 reference 什么时候读；脚本表补 `pack.js`
+
 ## 1.4.7
 
 - 新增 `npm run doctor` —— **环境自检**：node 版本 / config 与项目根可写 / 两个 TTF / 字体子集 / Python+fontTools+brotli / Playwright Chromium 或系统 Edge / curl / tvly（Windows 上还会提醒 `PYTHONIOENCODING`）/ `--net` 顺带探 AniList、safebooru、维基连通性。此前环境问题都要"跑到第几步才炸"，用户第一次用往往就死在这里

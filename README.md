@@ -81,8 +81,22 @@
 | `contact_sheet.js` | 全页联络表（目检用，`npm run sheet`） |
 | `doctor.js` | 环境自检（`npm run doctor`；node/python/字体/浏览器/curl/tvly/配置一次查完） |
 | `sources.js` | 素材来源台账（`npm run sources`；记录每张图的渠道与出处，公开分享时核对授权用） |
+| `pack.js` | 一键交付（`npm run pack`；把 PDF/HTML/分享卡/来源台账 + 自动生成的交付说明归拢到 `_deliver/`） |
 
 **配置**：所有脚本统一读 `config.json`（`root` = 项目根，`vroot` = 模式 B 视频库根）；日常一条 `npm run pipeline` 跑完。
+
+## 文档分级（入口很轻，细节按需读）
+
+`SKILL.md` 只放**执行流程 + 质检铁律 + 最硬的坑位**（约 9.6 KB），细节拆到 `references/`，agent 按需读、不必全量吃进上下文：
+
+| 文档 | 什么时候读 |
+| --- | --- |
+| `references/fields.md` | 写某部作品的调研 JSON 时（字段表 + 逐字段说明） |
+| `references/build.md` | 跑构建/渲染/验收/交付时（config 字段 + 全部命令 + 交付规矩） |
+| `references/pipeline.md` | 联网取数、遇到具体报错、要看 13 条完整坑位时 |
+| `references/image-selection.md` | 选封面/立绘、判断该用哪张图、法律红线 |
+| `references/compliance.md` | 交付前过版权与隐私（含来源台账用法、外发清理清单） |
+| `references/domain-novel.md` | 做小说设定集（novel 域）时 |
 
 ## 质检铁律
 
