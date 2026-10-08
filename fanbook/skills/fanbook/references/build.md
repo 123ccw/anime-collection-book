@@ -33,6 +33,7 @@ npm run audit      # 数据完备度（哪部缺字段、哪些还写着"未核�
 npm run sheet      # 生成全页联络表（目检用；也支持任意 PDF：node contact_sheet.js --pdf <路径> --out <目录> [--scale <n>]）
 npm run cards      # 导出收藏卡 PNG + 高清整页图（anime_build/_cards 与 _gallery）
 npm run sources    # 出素材来源台账（anime_build/_sources.md）——公开分享时的自证材料
+npm run epub       # 导出 EPUB 3 可重排版（anime_build/<书名>.epub；手机/阅读器用；需 Python 3，字体子集另需 fonttools）
 npm run userdata   # 把研究稿里的"已收"迁进 userdata.json（只补缺失、幂等；`-- --dry-run` 只看不写）
 npm run test:userdata  # 用户数据层回归测试（读写 / 原子写 / 损坏保护 / 迁移幂等 / 构建只读）
 npm run pack       # 一键交付：把成品与说明归拢到 <项目根>/_deliver/

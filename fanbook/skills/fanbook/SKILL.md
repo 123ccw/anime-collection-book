@@ -4,7 +4,7 @@ license: MIT
 compatibility: Requires Node.js >=20 with npm, Python 3 + fonttools/brotli (font subsetting), Playwright Chromium (or system Edge), curl and the Tavily CLI (tvly; Windows needs PYTHONIOENCODING=utf-8 for --json), and internet access for anime research (novel mode is offline).
 metadata:
   author: 123ccw
-  version: "1.8.0"
+  version: "1.7.1"
 description: Use when 用户想把番剧/动画做成"收藏册/图鉴/纪念册/简介 PDF"——可只给片名清单（清单也可来自对话上文或文件，无需本地视频文件），也可基于本机视频收藏库；TV/剧场版/OVA 及 Galgame 视觉小说的同类整理均适用。也用于把网文/小说的设定资料整理成"设定集/角色档案册/伏笔追踪手册/读者向无剧透图鉴 PDF"（数据来自用户本地稿件或笔记，离线完成）。产出杂志风 PDF：海报墙封面封底、无剧透简介（剧透独立成表）、结构化要点表、每部主题色章节、数说统计页、可点击目录与书签页脚，另可导出竖版分享卡 PNG。不用于：追番进度管理（这不是 tracker）、视频文件整理/重命名/媒体库刮削（Jellyfin/Emby/Plex 场景）、对已有 PDF 的格式转换、小说正文本身的写作或排版。
 ---
 
@@ -39,7 +39,7 @@ description: Use when 用户想把番剧/动画做成"收藏册/图鉴/纪念册
       ↳ `check` 报错 → 按 `[C#]/[A#]/[P#]` 码查 `evals/README.md` 的错误码表（每码带修法）；`[V1]/[V2]` 只提醒不阻断
       ↳ `[C15]` 报缺字 → 文案改过没重跑子集，回 ③ 重跑 `npm run pipeline`；`[C16]` 报书签缺 → 渲染丢了 `outline`（或成品被合并过），别在渲染后做页级合并
 - [ ] 🛑 STOP：全页目检与封面逐张核对未完成（或未如实记录）**禁止**进入 ⑤
-- [ ] ⑤ 交付：`npm run pack -- --pages-reviewed --covers-reviewed`（一键产出 `_deliver/`：PDF + HTML + 分享卡 + 来源台账 + 交付说明，说明里带**核验状态表**），细节见 `references/build.md`
+- [ ] ⑤ 交付：`npm run pack -- --pages-reviewed --covers-reviewed`（一键产出 `_deliver/`：PDF + HTML + 分享卡 + 来源台账 + 交付说明，说明里带**核验状态表**；想同时带上手机可读的 EPUB，先跑 `npm run epub`），细节见 `references/build.md`
 - [ ] 🔴 CHECKPOINT：交付说明的**核验状态表**与实际做到哪一步一致，再发出
 
 **④ 的全页目检是硬要求**：`npm run sheet` 出联络表 → **agent 亲自逐页读** `_sheets/` 的 PNG，核对空白页 / 溢出 / 封面张冠李戴 / 乱码；`check` 只能证明产物存在、页码对，**代替不了它**。（若你的环境另有视觉验收子代理，可作为可选增强接上——**它不是本 skill 的依赖**。）
