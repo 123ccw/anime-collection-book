@@ -422,7 +422,7 @@ try {
   lines.push('');
   fs.writeFileSync(path.join(TMP, '交付说明.md'), lines.join('\n'), 'utf8');
   fs.writeFileSync(path.join(TMP, MARKER), JSON.stringify({
-    tool: 'anime-collection-book/pack',
+    tool: 'fanbook/pack',
     packedAt: new Date().toISOString(),
     book: BOOK,
     pages,

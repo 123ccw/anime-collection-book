@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.7.0
+
+**改名 + 双领域定位**：`anime-collection-book` → **`fanbook`**。
+
+引擎早就同时覆盖两个领域（番剧收藏册 / 小说设定集），旧名以偏概全。趁仓库还只有 1 star、0 fork 一次改干净，避免以后有用户再动。
+
+- 仓库 / 插件 / skill 名统一为 `fanbook`，skill 目录 `skills/fanbook/`（`lint_skill.js` 校验 name 与目录名一致，已同步）
+- 插件显示名 `Fanbook`（zh-CN「番剧收藏册 / 设定集」）
+- 安装命令变为 `/plugin marketplace add 123ccw/fanbook` + `/plugin install fanbook@fanbook`（旧仓库 URL 由 GitHub 自动重定向，旧链接不断）
+- 生成物页脚、`pack` 清单的 `tool` 字段、`fetch_candidates` 的 UA、`scripts` 包名一并更名；共 68 处引用、14 个文件
+- **无行为变更**：脚本逻辑、17 条断言、两个领域包与字段映射全部未动
+- 本版同时并入 SKILL.md 的两轮优化（检查点门控 / 失败分支 / 去重，见 PR #3）
+
 ## 1.6.0
 
 这一版**没有新功能**。起因是一次"把本 skill 的引擎拿去写非番剧文档"的实测：为了做一份《三家网盘实用介绍》，我得靠人手抄 `contact_sheet.js` 的思路才能做出目检；顺着这条线做了三轮审计（构建链 / 交付链 / 文档一致性），每条都**先复现、后修复、再回归**。

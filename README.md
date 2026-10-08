@@ -1,4 +1,6 @@
-# anime-collection-book
+# fanbook
+
+> 原名 `anime-collection-book`，2026-10 更名为 **fanbook** —— 同一套引擎已同时覆盖「番剧收藏册」与「小说设定集」两个领域包，旧名以偏概全。旧仓库链接由 GitHub 自动重定向。
 
 把一份**番剧名字清单**（或本机视频收藏库）做成一本"杂志风"PDF 收藏册：
 
@@ -7,7 +9,7 @@
 **海报墙封面 + 「完」字封底**（书名可配），全书中文字体内嵌（霞鹜文楷子集），PDF 带可折叠书签与页脚页码。
 **系列完整度审计**（每部「收录 M/N 条」+ 待补清单）· `npm run cards` 一键导出**竖版收藏卡 PNG** 与高清整页图（社交发图）。
 
-> **内置两个领域包**：`config.json` 的 `"domain"` 切换 —— `anime`（默认，本仓库主示例）／`novel`：把同一引擎用于**小说设定集**——每个角色一章、伏笔追踪表（franchise 字段承载）、数说设定页、读者向脱敏版，全程离线。字段映射见 [domain-novel.md](anime-collection-book/skills/anime-collection-book/references/domain-novel.md)。
+> **内置两个领域包**：`config.json` 的 `"domain"` 切换 —— `anime`（默认，本仓库主示例）／`novel`：把同一引擎用于**小说设定集**——每个角色一章、伏笔追踪表（franchise 字段承载）、数说设定页、读者向脱敏版，全程离线。字段映射见 [domain-novel.md](fanbook/skills/fanbook/references/domain-novel.md)。
 
 这是一个给 **AI agent**（Claude Code / ZCode / Cursor 等，需具备文件读写 + Shell + 联网 + 读图能力）使用的 skill，符合 [Agent Skills 开放格式](https://code.claude.com/docs/en/skills)（SKILL.md + 附属脚本），同时按 Claude Code **插件市场**规范打包。
 
@@ -41,15 +43,15 @@
 **Claude Code（推荐，一条命令）：**
 
 ```
-/plugin marketplace add 123ccw/anime-collection-book
-/plugin install anime-collection-book@anime-collection-book
+/plugin marketplace add 123ccw/fanbook
+/plugin install fanbook@fanbook
 ```
 
 装好后说"我想给这几部番做个收藏册：…"即可触发。
 
 **其他 agent（手动）：**
 
-把 `anime-collection-book/skills/anime-collection-book/` 整个文件夹拷进对应工具的技能目录，让 agent 读其中的 `SKILL.md` 照做：
+把 `fanbook/skills/fanbook/` 整个文件夹拷进对应工具的技能目录，让 agent 读其中的 `SKILL.md` 照做：
 
 | 工具 | 技能目录 |
 |---|---|
@@ -118,7 +120,7 @@
 
 没签就写「未声明」，收据比成品旧就标「⚠ 过期」。**机器验不了的事不假装验过**——想让它变绿只有一条路：真的去做。
 
-## 脚本（skills/anime-collection-book/scripts/）
+## 脚本（skills/fanbook/scripts/）
 
 | 文件 | 作用 |
 |---|---|
@@ -156,7 +158,7 @@
 ## 质检铁律
 
 封面必须让 agent 亲眼看（防张冠李戴）；每个字段要么带来源、要么写「未核实」；发布前全页目检。
-完整踩坑清单（14 条）与数据源用法见 [`references/pipeline.md`](anime-collection-book/skills/anime-collection-book/references/pipeline.md)。
+完整踩坑清单（14 条）与数据源用法见 [`references/pipeline.md`](fanbook/skills/fanbook/references/pipeline.md)。
 
 ## 关于素材版权
 
@@ -177,7 +179,7 @@
 
 | 删什么 | 为什么 |
 | --- | --- |
-| `anime-collection-book/skills/anime-collection-book/scripts/config.json` | 含你的**本机绝对路径**（用户名） |
+| `fanbook/skills/fanbook/scripts/config.json` | 含你的**本机绝对路径**（用户名） |
 | `names.txt` | 你的片单 ＝ 观看偏好 |
 | `anime_research/` | 调研稿与从网上抓下来的图片 |
 

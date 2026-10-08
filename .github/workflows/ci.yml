@@ -18,18 +18,18 @@ jobs:
           node-version: 20
       - name: 全部脚本语法检查
         run: |
-          for f in anime-collection-book/skills/anime-collection-book/scripts/*.js \
-                   anime-collection-book/skills/anime-collection-book/evals/*.js; do
+          for f in fanbook/skills/fanbook/scripts/*.js \
+                   fanbook/skills/fanbook/evals/*.js; do
             echo "check $f"
             node --check "$f"
           done
       - name: 校验插件清单为合法 JSON
         run: |
-          node -e "for (const p of ['.claude-plugin/marketplace.json','anime-collection-book/.claude-plugin/plugin.json','anime-collection-book/.zcode-plugin/plugin.json','anime-collection-book/skills/anime-collection-book/scripts/package.json']) { JSON.parse(require('fs').readFileSync(p,'utf8')); console.log('OK', p); }"
+          node -e "for (const p of ['.claude-plugin/marketplace.json','fanbook/.claude-plugin/plugin.json','fanbook/.zcode-plugin/plugin.json','fanbook/skills/fanbook/scripts/package.json']) { JSON.parse(require('fs').readFileSync(p,'utf8')); console.log('OK', p); }"
       - name: 校验版本号一致（单一事实源：scripts/sync_version.js）
-        run: node anime-collection-book/skills/anime-collection-book/scripts/sync_version.js --check
+        run: node fanbook/skills/fanbook/scripts/sync_version.js --check
       - name: 校验 skill 信封（frontmatter / 引用完整性 / 文档数字与代码是否一致）
-        run: node anime-collection-book/skills/anime-collection-book/evals/lint_skill.js
+        run: node fanbook/skills/fanbook/evals/lint_skill.js
 
   fixture:
     runs-on: ubuntu-latest
@@ -42,7 +42,7 @@ jobs:
         with:
           python-version: "3.12"
       - name: 装脚本依赖（含 Chromium）
-        working-directory: anime-collection-book/skills/anime-collection-book/scripts
+        working-directory: fanbook/skills/fanbook/scripts
         run: |
           npm ci
           npx playwright install --with-deps chromium
@@ -51,7 +51,7 @@ jobs:
 
       - name: 准备 fixture 项目根（含程序生成的测试字体）
         run: |
-          SKILL="$PWD/anime-collection-book/skills/anime-collection-book"
+          SKILL="$PWD/fanbook/skills/fanbook"
           ROOT="$RUNNER_TEMP/acb-eval"
           rm -rf "$ROOT" && mkdir -p "$ROOT"
           cp -r "$SKILL/evals/fixture/." "$ROOT/"
@@ -62,7 +62,7 @@ jobs:
           echo "ACB_SKILL=$SKILL" >> "$GITHUB_ENV"
 
       - name: 模式 A 合成 + 两轮 pipeline
-        working-directory: anime-collection-book/skills/anime-collection-book/scripts
+        working-directory: fanbook/skills/fanbook/scripts
         env:
           ANIME_BOOK_ROOT: ${{ env.ACB_ROOT }}
           ANIME_BOOK_FONT_REGULAR: ${{ env.ACB_ROOT }}/fonts/Smoke-Regular.ttf
@@ -72,7 +72,7 @@ jobs:
           npm run pipeline
 
       - name: 产物断言 + 数据审计（并留下收据）
-        working-directory: anime-collection-book/skills/anime-collection-book/scripts
+        working-directory: fanbook/skills/fanbook/scripts
         env:
           ANIME_BOOK_ROOT: ${{ env.ACB_ROOT }}
         run: |
@@ -83,7 +83,7 @@ jobs:
           node -e "const c=require(process.env.ANIME_BOOK_ROOT+'/anime_build/_check.json');console.log('check',JSON.stringify(c.counts),JSON.stringify(c.failures))"
 
       - name: 负向测试 ① 封面缺失必须被抓住
-        working-directory: anime-collection-book/skills/anime-collection-book/scripts
+        working-directory: fanbook/skills/fanbook/scripts
         env:
           ANIME_BOOK_ROOT: ${{ env.ACB_ROOT }}
         run: |
@@ -99,7 +99,7 @@ jobs:
           echo "✓ 封面缺失 → check 失败并报 [C7]"
 
       - name: 负向测试 ② 页码未收敛必须被抓住
-        working-directory: anime-collection-book/skills/anime-collection-book/scripts
+        working-directory: fanbook/skills/fanbook/scripts
         env:
           ANIME_BOOK_ROOT: ${{ env.ACB_ROOT }}
         run: |
@@ -116,7 +116,7 @@ jobs:
           echo "✓ 页码漂移 → check 失败并报 [C12]"
 
       - name: 负向测试 ③ 交付诚实性（无收据 / 未声明必须被标注）
-        working-directory: anime-collection-book/skills/anime-collection-book/scripts
+        working-directory: fanbook/skills/fanbook/scripts
         env:
           ANIME_BOOK_ROOT: ${{ env.ACB_ROOT }}
         run: |
@@ -133,7 +133,7 @@ jobs:
       # ---- 以下几条对应 2026-10 审计发现的真实缺陷（每条都先复现过）----
 
       - name: 负向测试 ④ 书名与某部作品名相同时，目录页码不得取到前置页
-        working-directory: anime-collection-book/skills/anime-collection-book/scripts
+        working-directory: fanbook/skills/fanbook/scripts
         env:
           ANIME_BOOK_ROOT: ${{ env.ACB_ROOT }}
           ANIME_BOOK_TITLE: 星海旅人
@@ -150,7 +150,7 @@ jobs:
           echo "✓ 书名撞作品名 → 页码正确且 [C17] 无重复书签"
 
       - name: 负向测试 ④b [C17] 必须能抓到重复书签（防新断言恒真）
-        working-directory: anime-collection-book/skills/anime-collection-book/scripts
+        working-directory: fanbook/skills/fanbook/scripts
         env:
           ANIME_BOOK_ROOT: ${{ env.ACB_ROOT }}
         run: |
@@ -168,7 +168,7 @@ jobs:
           echo "✓ 重复书签 → check 失败并报 [C17]"
 
       - name: 恢复默认书名与收据
-        working-directory: anime-collection-book/skills/anime-collection-book/scripts
+        working-directory: fanbook/skills/fanbook/scripts
         env:
           ANIME_BOOK_ROOT: ${{ env.ACB_ROOT }}
           ANIME_BOOK_FONT_REGULAR: ${{ env.ACB_ROOT }}/fonts/Smoke-Regular.ttf
@@ -186,7 +186,7 @@ jobs:
           npm run audit >/dev/null || true
 
       - name: 负向测试 ⑤ --force 不得删除用户目录里的非本工具文件
-        working-directory: anime-collection-book/skills/anime-collection-book/scripts
+        working-directory: fanbook/skills/fanbook/scripts
         env:
           ANIME_BOOK_ROOT: ${{ env.ACB_ROOT }}
         run: |
@@ -203,7 +203,7 @@ jobs:
           echo "✓ 非本工具目录被拒绝，用户文件完好无损"
 
       - name: 负向测试 ⑥ 交付包不得含本机绝对路径（台账泄漏）
-        working-directory: anime-collection-book/skills/anime-collection-book/scripts
+        working-directory: fanbook/skills/fanbook/scripts
         env:
           ANIME_BOOK_ROOT: ${{ env.ACB_ROOT }}
         run: |
@@ -222,7 +222,7 @@ jobs:
           echo "✓ 台账已产出，且交付包内无本机绝对路径"
 
       - name: 负向测试 ⑦ 伪造/串项目的收据不得被标成"全部通过"
-        working-directory: anime-collection-book/skills/anime-collection-book/scripts
+        working-directory: fanbook/skills/fanbook/scripts
         env:
           ANIME_BOOK_ROOT: ${{ env.ACB_ROOT }}
         run: |
