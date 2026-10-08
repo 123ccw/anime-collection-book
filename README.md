@@ -105,7 +105,9 @@
    npm run audit                            # 数据完备度 → 写 _audit.json 与 receipts/<作品名>.json
    npm run sheet                            # 生成全页联络表（目检用）
    npm run userdata                         # 把研究稿里的"已收"迁进 userdata.json（个人数据层；`-- --dry-run` 只看不写）
-   npm run test:userdata                    # 用户数据层回归测试（读写 / 原子写 / 损坏保护 / 迁移幂等 / 构建只读）
+   npm run userdata:set -- --folder "作品名" --score 8.5 --comment "短评原文"   # 写我的评分/短评（`-- --dry-run` 只看不写）
+   npm run userdata:list                    # 列出已写入的作品与评分
+   npm run test:userdata                    # 用户数据层回归测试（读写 / 原子写 / 损坏保护 / 迁移幂等 / 写入入口 / 构建只读）
    npm run epub                             # 导出 EPUB 3 可重排版（anime_build/<书名>.epub；手机/阅读器用）
    npm run pack -- --pages-reviewed --covers-reviewed   # 交付（签署你确实做过的目检）
    ```
@@ -141,6 +143,7 @@
 | `_config.js` | 配置单一事实源（`config.json` + `ANIME_BOOK_*` 环境变量；所有脚本共用） |
 | `_userdata.js` | 用户数据层单一读写实现（原子写 + 幂等迁移 + 只读 `reader`）；**构建只读**它，唯一写入者是迁移器/导入器（`references/userdata.md`） |
 | `migrate_userdata.js` | 把 `anime_research/*.json` 的 `franchise[].collected` 迁进 `userdata.json`（`npm run userdata`；只补缺失、幂等） |
+| `set_userdata.js` | 个人数据的写入入口（`npm run userdata:set` / `userdata:list`）：按 folder 定位、只改传入字段、支持 `--clear` 与 `--dry-run`；校验前置，坏了拒绝写 |
 | `epub.js` | EPUB 导出包装（`npm run epub`；跨平台探测 python 后调用 `export_epub.py`） |
 | `export_epub.py` | EPUB 3 渲染（封面页 / 书名总览 / 每部一章 / 版权页 + nav 目录；字体子集化后内嵌，`--no-font` 可关） |
 | `sync_version.js` | 版本号校验/同步（`npm run version:check` / `version:fix`；按 glob 发现清单，不写死路径） |

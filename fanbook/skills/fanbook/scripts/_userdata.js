@@ -170,6 +170,37 @@ function migrate(data, opts) {
   return { data: out, stats: stats, error: null };
 }
 
+// 写入口：按 folder 定位（没有就新建），只改动传入的字段；返回 { data, workId, created, changed }
+//   fields 支持 score / comment / status / first_watched / finished_at / collected / rewatch_count / tags / provenance
+//   opts.clear 传字段名数组表示删除该字段（changed 里记成 "-字段名"）
+function setFields(data, folder, fields, opts) {
+  const o = opts || {};
+  const out = normalize(data || empty());
+  const name = String(folder == null ? '' : folder).trim();
+  if (!name) throw new Error('setFields: folder 不能为空');
+  let id = null;
+  for (const k of Object.keys(out.works)) {
+    if (out.works[k].folder === name) { id = k; break; }
+  }
+  let created = false;
+  if (!id) {
+    id = workId(name);
+    out.works[id] = normWork({ work_id: id, folder: name });
+    created = true;
+  }
+  const w = out.works[id];
+  const changed = [];
+  const f = fields || {};
+  for (const key of Object.keys(f)) {
+    if (f[key] === undefined) continue;
+    if (JSON.stringify(w[key]) !== JSON.stringify(f[key])) { w[key] = f[key]; changed.push(key); }
+  }
+  for (const key of (o.clear || [])) {
+    if (Object.prototype.hasOwnProperty.call(w, key)) { delete w[key]; changed.push('-' + key); }
+  }
+  return { data: out, workId: id, created: created, changed: changed, work: w };
+}
+
 module.exports = {
   SCHEMA_VERSION: SCHEMA_VERSION,
   filePath: filePath,
@@ -179,6 +210,7 @@ module.exports = {
   save: save,
   reader: reader,
   migrate: migrate,
+  setFields: setFields,
   workId: workId,
   atomicWrite: atomicWrite,
 };
