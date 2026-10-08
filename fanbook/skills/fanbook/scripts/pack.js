@@ -45,6 +45,7 @@ const ALWAYS_OWNED = new Set([MARKER, '交付说明.md']);
 
 const PDF = path.join(BLD, BOOK + '.pdf');
 const HTML = path.join(BLD, BOOK + '.html');
+const EPUB = path.join(BLD, BOOK + '.epub');
 const kb = (n) => (n / 1024).toFixed(0) + ' KB';
 
 // ---- 产物归属判定：只认 .pack-manifest.json 登记过的文件（--force 也不能越过这条线）----
@@ -279,10 +280,11 @@ function copyCoversInto(relDir, note) {
   return n;
 }
 
-let hasHtml = false, nCovers = 0, nCards = 0, nGallery = 0, hasSources = false, pdfSize = 0;
+let hasHtml = false, hasEpub = false, nCovers = 0, nCards = 0, nGallery = 0, hasSources = false, pdfSize = 0;
 try {
   copyInto(PDF, BOOK + '.pdf', '成品 PDF');
   hasHtml = copyInto(HTML, BOOK + '.html', 'HTML 源（可自行微调重渲）');
+  hasEpub = copyInto(EPUB, BOOK + '.epub', 'EPUB 3 可重排版（手机/阅读器用；由 npm run epub 生成）');
   nCovers = copyCoversInto('covers', '封面图（HTML 用相对路径 covers/ 引用）');
   nCards = copyDirInto(path.join(BLD, '_cards'), '分享卡', '竖版分享卡（社交发图）');
   nGallery = NO_GALLERY ? 0 : copyDirInto(path.join(BLD, '_gallery'), '整页高清图', '高清整页图');
@@ -419,6 +421,7 @@ try {
   lines.push('- 公开发布（发群、上传平台、印制售卖）前请自行评估授权 —— **注明来源不等于获得授权**');
   lines.push('- 中文字体为霞鹜文楷子集（SIL OFL 1.1，© LXGW ｜ © The Klee Project Authors），封底署名请勿删除');
   lines.push('- 想微调重渲：改 `' + BOOK + '.html` 后用浏览器打印为 PDF，或回到项目里重跑 `npm run pipeline`');
+  if (hasEpub) lines.push('- EPUB 版（' + BOOK + '.epub）可重排、无固定页码，适合手机与电子书阅读器；改完数据后重跑 `npm run epub` 再 `npm run pack`');
   lines.push('');
   fs.writeFileSync(path.join(TMP, '交付说明.md'), lines.join('\n'), 'utf8');
   fs.writeFileSync(path.join(TMP, MARKER), JSON.stringify({
@@ -478,6 +481,8 @@ try {
   if (relSet.has(BOOK + '.pdf')) console.log('  ' + BOOK + '.pdf（' + kb(pdfSize) + (pages ? '，' + pages + ' 页' : '') + '）');
   if (hasHtml) console.log('  ' + BOOK + '.html（可自行微调重渲）');
   else console.warn('⚠ 没找到 HTML 源（' + HTML + '）：交付包里没有可微调重渲的 HTML');
+  if (hasEpub) console.log('  ' + BOOK + '.epub（可重排，手机/阅读器用）');
+  else console.log('  （未含 EPUB —— 可选：先跑 `npm run epub` 再 pack）');
   if (nCovers) console.log('  covers/ 封面图 ' + nCovers + ' 张');
   if (nCards) console.log('  分享卡 ' + nCards + ' 张');
   if (nGallery) console.log('  高清整页图 ' + nGallery + ' 张');

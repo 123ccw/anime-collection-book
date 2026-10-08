@@ -8,6 +8,7 @@
 官方海报 · 台词卡 · 无剧透简介 · 制作与声优 · 原作情报 · 补番顺序 · 逐季剧透详情表 · 更新动态。
 **海报墙封面 + 「完」字封底**（书名可配），全书中文字体内嵌（霞鹜文楷子集），PDF 带可折叠书签与页脚页码。
 **系列完整度审计**（每部「收录 M/N 条」+ 待补清单）· `npm run cards` 一键导出**竖版收藏卡 PNG** 与高清整页图（社交发图）。
+**同一份数据还能导出 EPUB 3**（可重排、无固定页码，手机/电子书阅读器用）：`npm run epub`。
 
 > **内置两个领域包**：`config.json` 的 `"domain"` 切换 —— `anime`（默认，本仓库主示例）／`novel`：把同一引擎用于**小说设定集**——每个角色一章、伏笔追踪表（franchise 字段承载）、数说设定页、读者向脱敏版，全程离线。字段映射见 [domain-novel.md](fanbook/skills/fanbook/references/domain-novel.md)。
 
@@ -103,6 +104,9 @@
    npm run probe                            # 只跑 PDF 层深检（正文缺字 + 书签）→ 写 _pdfprobe.json
    npm run audit                            # 数据完备度 → 写 _audit.json 与 receipts/<作品名>.json
    npm run sheet                            # 生成全页联络表（目检用）
+   npm run userdata                         # 把研究稿里的"已收"迁进 userdata.json（个人数据层；`-- --dry-run` 只看不写）
+   npm run test:userdata                    # 用户数据层回归测试（读写 / 原子写 / 损坏保护 / 迁移幂等 / 构建只读）
+   npm run epub                             # 导出 EPUB 3 可重排版（anime_build/<书名>.epub；手机/阅读器用）
    npm run pack -- --pages-reviewed --covers-reviewed   # 交付（签署你确实做过的目检）
    ```
    > 不想改 `config.json` 时，可用 `ANIME_BOOK_ROOT` 等环境变量覆盖（所有脚本统一读 `scripts/_config.js`）。
@@ -133,8 +137,12 @@
 | `doctor.js` | 环境自检（`npm run doctor`；node/python/字体/浏览器/curl/tvly/配置/**重复安装**一次查完） |
 | `_titles.js` | 收录作品标题解析的单一事实源（pagemap 与 PDF 探针共用，避免两处漂移） |
 | `sources.js` | 素材来源台账（`npm run sources` 默认**导出**台账；`add` 记录、`list` 打印；公开分享时核对授权用） |
-| `pack.js` | 一键交付（`npm run pack`；把 PDF/HTML/分享卡/整页图/封面图/来源台账 + 自动生成的交付说明归拢到 `_deliver/`，说明里含核验状态表；`--strict` 可在有未核验项时非零退出） |
+| `pack.js` | 一键交付（`npm run pack`；把 PDF/HTML/**EPUB（存在时）**/分享卡/整页图/封面图/来源台账 + 自动生成的交付说明归拢到 `_deliver/`，说明里含核验状态表；`--strict` 可在有未核验项时非零退出） |
 | `_config.js` | 配置单一事实源（`config.json` + `ANIME_BOOK_*` 环境变量；所有脚本共用） |
+| `_userdata.js` | 用户数据层单一读写实现（原子写 + 幂等迁移 + 只读 `reader`）；**构建只读**它，唯一写入者是迁移器/导入器（`references/userdata.md`） |
+| `migrate_userdata.js` | 把 `anime_research/*.json` 的 `franchise[].collected` 迁进 `userdata.json`（`npm run userdata`；只补缺失、幂等） |
+| `epub.js` | EPUB 导出包装（`npm run epub`；跨平台探测 python 后调用 `export_epub.py`） |
+| `export_epub.py` | EPUB 3 渲染（封面页 / 书名总览 / 每部一章 / 版权页 + nav 目录；字体子集化后内嵌，`--no-font` 可关） |
 | `sync_version.js` | 版本号校验/同步（`npm run version:check` / `version:fix`；按 glob 发现清单，不写死路径） |
 
 **验收脚本**（`evals/`）：`check.js`（产物断言 `[C1]-[C17]`，纯 fs 零依赖）、`pdfprobe.js`（PDF 层深检：正文缺字 / 书签丢失 / 书签重名）、`audit.js`（数据完备度）、`lint_skill.js`（skill 信封与文档数字一致性）。
@@ -154,6 +162,7 @@
 | `references/image-selection.md` | 选封面/立绘、判断该用哪张图、法律红线 |
 | `references/compliance.md` | 交付前过版权与隐私（含来源台账用法、外发清理清单） |
 | `references/domain-novel.md` | 做小说设定集（novel 域）时 |
+| `references/userdata.md` | 给收藏加"我的评分/短评/已收状态"，或要迁移/备份个人数据时（schema + 硬规则 + 验收） |
 
 ## 质检铁律
 

@@ -8,6 +8,7 @@ const path = require('path');
 
 // ---- 统一配置（单文件唯一事实源：scripts/_config.js；支持 ANIME_BOOK_* 环境变量覆盖）----
 const { CFG, ROOT, BOOK } = require('./_config');
+const userdata = require('./_userdata');   // 用户数据层（P0）：本文件只读
 const VROOT = CFG.vroot || '';               // 模式 B（本机视频库）才填；模式 A 留空
 const BOOK_TITLE = BOOK;   // 书名（封面/总览/封底共用；同时是输出文件名，全书统一）
 
@@ -21,6 +22,7 @@ const L = DOMAIN === 'novel' ? {
   colUnit: '篇', colEps: '章数', colAir: '时间', colSop: '弧线（含剧透）', epsSuffix: '章',
   hSyn: '角色小传', hProd: '设定要点', hMusic: '关系与登场', mkMusic: '重要关系', mkPlat: '登场卷',
   hSource: '出处', hOrder: '登场顺序', hUpdate: '近况', hDetail: '出场详情',
+  myScore: '我的评分', hMyComment: '我的短评',
   frHero: '伏笔进度', frCard: '伏笔回收', frWait: '未回收', frDone: '已全部回收 ✓', frDoneShort: '全回收 ✓',
   almTitle: '数说设定', almTotal: '档案总量', almSpan: '连载跨度', almLong: '戏份最重',
   almGenre: '高频标签', almDecade: '年代分布', almDone: '完结 / 连载中', almAllDone: '全部档案已完结',
@@ -33,6 +35,7 @@ const L = DOMAIN === 'novel' ? {
   colUnit: '单元', colEps: '集数', colAir: '首播', colSop: '剧情（含剧透）', epsSuffix: '集',
   hSyn: '剧情简介', hProd: '制作与声优', hMusic: '主题歌与观看', mkMusic: '主题歌', mkPlat: '观看平台',
   hSource: '原作情报', hOrder: '补番顺序', hUpdate: '动画更新', hDetail: '收藏详情',
+  myScore: '我的评分', hMyComment: '我的短评',
   frHero: '系列收录', frCard: '系列条目', frWait: '待补', frDone: '已收全 ✓', frDoneShort: '收齐 ✓',
   almTitle: '数说收藏', almTotal: '收藏总量', almSpan: '收录跨度', almLong: '最长系列',
   almGenre: '最高频类型', almDecade: '年代分布', almDone: '完结 / 放送中', almAllDone: '收录作品全部完结',
@@ -382,6 +385,15 @@ const shows = Object.values(base);
 let tocRows = '';
 const chapters = [];
 const showMeta = [];
+// 用户数据层（P0）：文件缺失是正常状态（回退研究稿）；损坏则告警并计入 warnings（构建末尾非零退出）
+const UD = (() => {
+  const res = userdata.load({ soft: true });
+  if (res.error) {
+    warnings.push('userdata 读取失败，本次回退到研究稿字段：' + res.error.message);
+    return userdata.reader(null);
+  }
+  return userdata.reader(res.data);
+})();
 for (const [i, rec] of shows.entries()) {
   const r = research[rec.folder] || {};
   const slug = 'show' + String(i + 1).padStart(2, '0');
@@ -458,7 +470,11 @@ for (const [i, rec] of shows.entries()) {
     ? `<div class="quote"><div class="qm">「</div><div class="qt">${esc(q.text)}</div>${q.speaker ? `<div class="qs">—— ${esc(q.speaker)}</div>` : ''}</div>`
     : '';
   // 系列完整度：franchise = 该系列全部条目盘点（collected 标是否已收）
-  const fr = arrStrict(r.franchise, 'franchise', rec.folder).filter(f => f && f.name);
+  const myScore = UD.score(rec.folder);
+  const myComment = UD.comment(rec.folder);
+  const fr = arrStrict(r.franchise, 'franchise', rec.folder).filter(f => f && f.name)
+    // 已收状态优先取 userdata（P0）：个人数据不会被调研稿重跑覆盖；查不到时沿用研究稿旧值
+    .map(f => { const u = UD.franchiseState(rec.folder, f); return u === undefined ? f : { ...f, collected: u }; });
   const frMiss = fr.filter(f => !f.collected);
   const frMissTxt = frMiss.map(f => `${f.kind ? f.kind + ' ' : ''}${f.name}${f.year ? '（' + f.year + '）' : ''}`).join('、');
   const frCardHtml = fr.length
@@ -480,6 +496,7 @@ for (const [i, rec] of shows.entries()) {
         ${titleJp ? `<div class="t2">${esc(titleJp)}</div>` : ''}
         ${genres.length ? `<div class="chips">${genres.map(g => `<span>${esc(g)}</span>`).join('')}</div>` : ''}
         ${ratings ? `<div class="score">评分　${ratings}</div>` : ''}
+        ${myScore ? `<div class="score">${L.myScore}　<b>${myScore.value}</b> / ${myScore.scale}${myScore.source ? ` · ${esc(myScore.source)}` : ''}</div>` : ''}
         <div class="score">${L.heroLine}　<b>${unitCount(rec)}</b> ${L.unitCnt} · 共 <b>${totalEps(rec)}</b> ${L.chapName}${air0 ? ` · ${L.firstAir} <b>${air0}</b>` : ''}</div>
         ${r.status ? `<div class="score"><span class="std ${stClass(r.status)}">${esc(r.status)}</span></div>` : ''}
         ${fr.length ? `<div class="score">${L.frHero}　<b>${fr.length - frMiss.length}</b> / <b>${fr.length}</b> 条</div>` : ''}
@@ -498,6 +515,7 @@ for (const [i, rec] of shows.entries()) {
       ? `<th style="width:${nameW}mm">${L.colUnit}</th><th style="width:14mm">${L.colEps}</th><th style="width:26mm">${L.colAir}</th><th>${L.colSop}</th>`
       : `<th style="width:${Math.min(64, nameW + 14)}mm">${L.colUnit}</th><th style="width:34mm">${L.colEps}</th><th>${L.colAir}</th>`}</tr></thead>
     <tbody>${unitRows}</tbody></table>` : ''}
+    ${myComment ? `<h2>${L.hMyComment}</h2><div class="card"><p>${esc(myComment)}</p></div>` : ''}
     ${frCardHtml}
   </div>`);
 

@@ -5,6 +5,7 @@
 //   ANIME_BOOK_VROOT  模式 B 视频库根
 //   ANIME_BOOK_DOMAIN anime | novel
 //   ANIME_BOOK_TITLE  书名
+//   ANIME_BOOK_USERDATA 用户数据文件路径（默认 <root>/userdata.json）
 //   ANIME_BOOK_CREDITS 封底"资料来源"行
 //   ANIME_BOOK_FONT_REGULAR / ANIME_BOOK_FONT_MEDIUM  自备字体路径（CI / 离线自测）
 //
@@ -51,6 +52,7 @@ function load(opts) {
     domain: pick('domain', 'ANIME_BOOK_DOMAIN') || 'anime',
     title: pick('title', 'ANIME_BOOK_TITLE') || '',
     credits: pick('credits', 'ANIME_BOOK_CREDITS') || '',
+    userdata: pick('userdata', 'ANIME_BOOK_USERDATA') || '',
     // CI / 自测：用自备字体替掉霞鹜文楷（形如 { regular: "<绝对路径>", medium: "<绝对路径>" }）
     fonts: (() => {
       const fr = env.ANIME_BOOK_FONT_REGULAR || (fromFile.fonts && fromFile.fonts.regular);
@@ -62,9 +64,11 @@ function load(opts) {
   const ROOT = CFG.root;
   const BOOK = CFG.title && String(CFG.title).trim() ? String(CFG.title).trim() : '番剧收藏简介';
   const P = (...a) => path.join(ROOT, ...a);
+  // 用户数据层（个人评分/短评/已收状态）：默认 <root>/userdata.json，可用配置或环境变量覆盖
+  const USERDATA = CFG.userdata || P('userdata.json');
 
   return {
-    CFG, ROOT, BOOK, P, configPath: CONFIG_PATH,
+    CFG, ROOT, BOOK, P, USERDATA, configPath: CONFIG_PATH,
     configError: raw.__error || null,
     DOMAIN: CFG.domain,
   };
