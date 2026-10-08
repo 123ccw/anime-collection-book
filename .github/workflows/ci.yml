@@ -30,6 +30,14 @@ jobs:
         run: node fanbook/skills/fanbook/scripts/sync_version.js --check
       - name: 校验 skill 信封（frontmatter / 引用完整性 / 文档数字与代码是否一致）
         run: node fanbook/skills/fanbook/evals/lint_skill.js
+      - name: 信封卫生（本机配置与依赖不得入库）
+        run: |
+          bad=$(git ls-files | grep -E '(^|/)node_modules/|(^|/)config\.json$' || true)
+          if [ -n "$bad" ]; then
+            echo "::error::skill 信封里不该出现这些（本机配置 / 依赖）："; echo "$bad"; exit 1
+          fi
+          test -f fanbook/skills/fanbook/scripts/config.example.json || { echo "::error::config.example.json 丢了"; exit 1; }
+          echo "✓ 信封干净：无 node_modules、无 config.json（模板 config.example.json 在位）"
 
   fixture:
     runs-on: ubuntu-latest
@@ -235,3 +243,51 @@ jobs:
           }
           cp "$RUNNER_TEMP/check.real" "$R"
           echo "✓ 收据与产物（root/书名/PDF 哈希）绑定校验生效"
+
+      - name: 准备 novel fixture 项目根（第二领域包）
+        run: |
+          SKILL="$PWD/fanbook/skills/fanbook"
+          ROOT="$RUNNER_TEMP/acb-novel"
+          rm -rf "$ROOT" && mkdir -p "$ROOT/fonts"
+          cp -r "$SKILL/evals/fixture-novel/." "$ROOT/"
+          python "$SKILL/evals/make_smoke_font.py" "$ROOT/fonts"
+          echo "ACB_NOVEL_ROOT=$ROOT" >> "$GITHUB_ENV"
+
+      - name: novel 领域包必须跑通且 check 全绿
+        working-directory: fanbook/skills/fanbook/scripts
+        env:
+          ANIME_BOOK_ROOT: ${{ env.ACB_NOVEL_ROOT }}
+          ANIME_BOOK_DOMAIN: novel
+          ANIME_BOOK_TITLE: 设定集冒烟
+          ANIME_BOOK_FONT_REGULAR: ${{ env.ACB_NOVEL_ROOT }}/fonts/Smoke-Regular.ttf
+          ANIME_BOOK_FONT_MEDIUM: ${{ env.ACB_NOVEL_ROOT }}/fonts/Smoke-Medium.ttf
+        run: |
+          # 回归保护：novel 在文档里是一等公民，但此前 CI 从没跑过它——
+          # 结果就是 [C7] 与 domain-novel.md「cover 无也可」长期打架而无人发现。
+          npm run base
+          npm run pipeline
+          npm run check
+          npm run audit || true
+          echo "✓ novel 跑通；角色未声明 cover 按设计降级，不再判 [C7] 失败"
+
+      - name: 负向测试 ⑧ novel 下「声明了 cover 却缺文件」仍必须被抓住
+        working-directory: fanbook/skills/fanbook/scripts
+        env:
+          ANIME_BOOK_ROOT: ${{ env.ACB_NOVEL_ROOT }}
+          ANIME_BOOK_DOMAIN: novel
+          ANIME_BOOK_TITLE: 设定集冒烟
+          ANIME_BOOK_FONT_REGULAR: ${{ env.ACB_NOVEL_ROOT }}/fonts/Smoke-Regular.ttf
+          ANIME_BOOK_FONT_MEDIUM: ${{ env.ACB_NOVEL_ROOT }}/fonts/Smoke-Medium.ttf
+        run: |
+          J="$ANIME_BOOK_ROOT/anime_research/沈观澜.json"
+          cp "$J" "$RUNNER_TEMP/shen.bak"
+          node -e "const fs=require('fs');const p=process.env.ANIME_BOOK_ROOT+'/anime_research/沈观澜.json';const j=JSON.parse(fs.readFileSync(p,'utf8'));j.cover='covers/不存在.jpg';fs.writeFileSync(p,JSON.stringify(j,null,1))"
+          set +e
+          npm run check > "$RUNNER_TEMP/negative8.log" 2>&1
+          code=$?
+          set -e
+          cat "$RUNNER_TEMP/negative8.log"
+          cp "$RUNNER_TEMP/shen.bak" "$J"
+          if [ "$code" -eq 0 ]; then echo "::error::novel 下声明了不存在的 cover，check 竟然通过了"; exit 1; fi
+          grep -q '\[C7\]' "$RUNNER_TEMP/negative8.log" || { echo "::error::失败信息里没有 [C7]"; exit 1; }
+          echo "✓ 放宽只对「未声明 cover」生效；「声明了却缺文件」仍被 [C7] 拦住"

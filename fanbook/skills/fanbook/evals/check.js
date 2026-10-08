@@ -9,7 +9,7 @@ const crypto = require('crypto');
 
 // ---- 统一配置（单文件唯一事实源：scripts/_config.js；支持 ANIME_BOOK_* 环境变量覆盖）----
 const cfgmod = require('../scripts/_config');
-const { ROOT, BOOK, P } = cfgmod;
+const { ROOT, BOOK, P, DOMAIN } = cfgmod;
 // 每次运行都写一份结构化收据：pack 会读它生成交付说明里的"核验状态表"
 const RECEIPT = P('anime_build', '_check.json');
 
@@ -76,25 +76,34 @@ t('[C5] HTML 无乱码替换符（U+FFFD）', html.indexOf('\uFFFD') < 0, '存�
 t('[C6] HTML 含章节结构', html.includes('class="show"'));
 
 // ③.5 封面（声明了封面且文件存在的部，构建必须把它复制成 anime_build/covers/showNN.jpg 并渲染进 HTML）
+// novel 领域：cover 属可选（references/domain-novel.md「无也可，自动降级为纯排印」）→ 未声明只记降级，不判失败；
+// 但「声明了却找不到文件」在两种领域下都仍是硬失败（否则等于把 [C7] 放空）。
 if (base) {
   let covDeclared = 0;
-  const bad = [];   // 会导致成品缺封面的问题，无条件报出来（不再只在断言失败时才可见）
+  const bad = [];        // 会导致成品缺封面的问题，无条件报出来（不再只在断言失败时才可见）
+  const degraded = [];   // novel 专属：未声明 cover，按设计降级，不影响 [C7]
   const recs = Object.values(base);
   for (const [i, rec] of recs.entries()) {
     const slug = 'show' + String(i + 1).padStart(2, '0');   // 与 build_anime_html.js 的 slug 规则一致
     let r = null;
     try { r = JSON.parse(fs.readFileSync(P('anime_research', rec.folder + '.json'), 'utf8')); }
     catch (e) { bad.push(rec.folder + '(research JSON 解析失败：' + e.message + ')'); continue; }
-    if (!r.cover) { bad.push(rec.folder + '(未声明 cover)'); continue; }
+    if (!r.cover) {
+      if (DOMAIN === 'novel') degraded.push(rec.folder);
+      else bad.push(rec.folder + '(未声明 cover)');
+      continue;
+    }
     if (!fs.existsSync(P('anime_research', r.cover))) { bad.push(rec.folder + '(cover 文件不存在：' + r.cover + ')'); continue; }
     covDeclared++;
     // 构建端复制后的目标文件名固定为 .jpg（与源扩展名无关）
     if (!fs.existsSync(P('anime_build', 'covers', slug + '.jpg'))) bad.push(rec.folder + '(未复制到 anime_build/covers/' + slug + '.jpg)');
   }
   if (bad.length) console.log('    · 封面异常：' + bad.join('、'));
+  if (degraded.length) console.warn('    · novel 模式：' + degraded.join('、') + ' 未声明 cover —— 按设计降级为纯排印（不判 [C7] 失败）');
   const imgCount = (html.match(/<img /g) || []).length;
   t('[C7] 封面图已渲染（无缺失 + img 数 ≥ 有效声明数）', bad.length === 0 && imgCount >= covDeclared,
-    'img=' + imgCount + ' 有效声明=' + covDeclared + (bad.length ? '；' + bad.join('、') : ''));
+    'img=' + imgCount + ' 有效声明=' + covDeclared + (bad.length ? '；' + bad.join('、') : '')
+      + (degraded.length ? '；novel 降级 ' + degraded.length + ' 部（未声明 cover）' : ''));
 }
 
 // ③.6 统计数字：不应出现首尾相同的年份区间（如 "2015-2015"）
