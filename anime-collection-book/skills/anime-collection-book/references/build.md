@@ -24,18 +24,24 @@
 ## 一键命令
 
 ```bash
-npm run doctor     # 环境自检（node / python+fonttools / 字体 / 浏览器 / curl / tvly / config；加 --net 顺带探网络）
+npm run doctor     # 环境自检（node / python+fonttools / 字体 / 浏览器 / curl / tvly / config / 重复安装；加 --net 顺带探网络）
 npm run pipeline   # 字体子集 → 两轮「构建→渲染→页码反查」，一条命令跑完
-npm run check      # 产物断言（完整性 / 页码全命中 / 无乱码 / 两轮收敛，共 13 条）
+npm run check      # 产物断言（完整性 / 页码全命中 / 无乱码 / 两轮收敛 / PDF 层，共 17 条；会自动先跑 probe）
+npm run probe      # 只跑 PDF 层深检（pdfjs 提正文 + 读书签）→ 写 anime_build/_pdfprobe.json
 npm run audit      # 数据完备度（哪部缺字段、哪些还写着"未核实"、剧透表对不对得上）
-npm run sheet      # 生成全页联络表（目检用）
+npm run sheet      # 生成全页联络表（目检用；也支持任意 PDF：node contact_sheet.js --pdf <路径> --out <目录> [--scale <n>]）
 npm run cards      # 导出收藏卡 PNG + 高清整页图（anime_build/_cards 与 _gallery）
 npm run sources    # 出素材来源台账（anime_build/_sources.md）——公开分享时的自证材料
 npm run pack       # 一键交付：把成品与说明归拢到 <项目根>/_deliver/
 npm run candidates -- <safebooru_tag>   # 候选图对比（兜底渠道；--pick <编号> 取图入库，见 image-selection.md）
 npm run lint       # skill 信封校验（frontmatter / 引用完整性 / 断言条数与坑位数是否与代码一致）
-npm run version:check   # 版本号是否 5 处一致（仓库维护用；不一致会列出并可 --fix）
+npm run version:check   # 版本号是否 6 处一致（仓库维护用；不一致会列出并可 --fix）
 ```
+
+> **`check` 为什么拆成两个脚本**：`check.js` 是"纯 fs、零依赖"，连 `npm i` 之前都能跑，代价是它看不见 PDF 内部。
+> "字体子集缺字"（在 PDF 里表现为整段消失，不是 HTML 那种 U+FFFD）与"书签丢失"只有解析 PDF 才知道，
+> 所以由 `pdfprobe.js`（用 pdfjs）做深检并写 `_pdfprobe.json` 收据，`check.js` 读它判定 `[C15]`-`[C17]`——
+> 与 `pack` 读 `_check.json` 是同一个模式。探针自己永远退出 0，避免 `&&` 链在验收前被掐断。
 
 > **验收收据**：`check` / `audit` 每次运行都会把结构化收据写到 `anime_build/_check.json` / `_audit.json`
 > （断言号、通过/失败、时间戳、被检查产物的哈希）。`pack` 读这两份收据生成交付说明里的**核验状态表**；
@@ -53,7 +59,9 @@ node anime_pagemap.js      # ④ 从书签反查每部起始页 → _pagemap.jso
 
 ## 交付
 
-推荐 `npm run pack`：产出 `<项目根>/_deliver/`，含 PDF、HTML 源、分享卡 PNG、来源台账与一份自动生成的交付说明。
+推荐 `npm run pack`：产出 `<项目根>/_deliver/`，含 PDF、HTML 源、`covers/` 封面图、分享卡 PNG、来源台账与一份自动生成的交付说明。
+
+> 目标目录里若已有不是本工具生成的文件，`pack` 会报 `[P9]` 拒绝覆盖并列出这些文件；`--force` 只放宽"这是不是本工具上次产物"的判定，**不会删用户目录里的文件**。
 
 ### 核验状态表（交付说明里的第一节）
 
@@ -61,13 +69,15 @@ node anime_pagemap.js      # ④ 从书签反查每部起始页 → _pagemap.jso
 
 | 行 | 来源 | 谁能证明 |
 | --- | --- | --- |
-| 产物断言 `[C1]-[C13]` | `anime_build/_check.json` | 脚本，可复现 |
+| 产物断言 `[C1]-[C17]` | `anime_build/_check.json` | 脚本，可复现 |
 | 数据完备度 `[A1]-[A10]` | `anime_build/_audit.json` | 脚本，可复现 |
 | **全页目检** | `pack --pages-reviewed` 签署 | **只有 agent 的声明**（`npm run sheet` 的 PNG 是证据材料，不是证据） |
 | **封面逐张目检** | `pack --covers-reviewed` 签署 | 同上 |
 
 - 未签署时该行写「未声明」，交付说明顶部会出现 `⚠ 有未经人工目检的声明` —— **别把这一行删掉再说自己看过了**
+- 收据要与产物对得上：`pack` 读 `_check.json` / `_audit.json` 时会校验 `root` / 书名 / 当前 PDF 的 sha256，任一对不上就标 `❌ 收据不属于本产物`（伪造或串项目的收据不会再被当成"✅ 全部通过"；audit 收据也会判过期）
 - 收据比成品旧（改完重渲、没重跑 `check`）时，该行写 `⚠ 过期（成品更新时间晚于收据）`
+- 想让未核验项直接失败（CI / 脚本用）：`npm run pack -- --strict`——有未核验项时非零退出（`[P11]`），默认只警告不阻断
 - 想跳过签署：明确告诉用户"这次没做逐页目检"，让它留在表上——**删声明比签假声明安全**
 
 ### 手工交付的规矩

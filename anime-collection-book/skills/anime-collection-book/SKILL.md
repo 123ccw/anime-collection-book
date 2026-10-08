@@ -4,7 +4,7 @@ license: MIT
 compatibility: Requires Node.js >=20 with npm, Python 3 + fonttools/brotli (font subsetting), Playwright Chromium (or system Edge), curl and the Tavily CLI (tvly; Windows needs PYTHONIOENCODING=utf-8 for --json), and internet access for anime research (novel mode is offline).
 metadata:
   author: 123ccw
-  version: "1.5.0"
+  version: "1.6.0"
 description: Use when 用户想把番剧/动画做成"收藏册/图鉴/纪念册/简介 PDF"——可只给片名清单（清单也可来自对话上文或文件，无需本地视频文件），也可基于本机视频收藏库；TV/剧场版/OVA 及 Galgame 视觉小说的同类整理均适用。也用于把网文/小说的设定资料整理成"设定集/角色档案册/伏笔追踪手册/读者向无剧透图鉴 PDF"（数据来自用户本地稿件或笔记，离线完成）。产出杂志风 PDF：海报墙封面封底、无剧透简介（剧透独立成表）、结构化要点表、每部主题色章节、数说统计页、可点击目录与书签页脚，另可导出竖版分享卡 PNG。不用于：追番进度管理（这不是 tracker）、视频文件整理/重命名/媒体库刮削（Jellyfin/Emby/Plex 场景）、对已有 PDF 的格式转换、小说正文本身的写作或排版。
 ---
 
@@ -31,7 +31,7 @@ description: Use when 用户想把番剧/动画做成"收藏册/图鉴/纪念册
 - [ ] ① 调研：`names.txt` → 每部一份 research JSON + 官方海报（**并发 ≤2**，一次 3-4 部省 token；字段见 `references/fields.md`）
 - [ ] ② 合成：`npm run base`（模式 A）
 - [ ] ③ 构建：`npm run pipeline`（字体子集 + 两轮「构建→渲染→页码反查」）
-- [ ] ④ 验收：`npm run check`（**产物断言 13 条** [C1]-[C13]）→ `npm run audit`（数据完备度 [A1]-[A10]）→ **全页目检** → 封面逐张目视核对
+- [ ] ④ 验收：`npm run check`（**产物断言 17 条** [C1]-[C17]；会自动先跑 `pdfprobe` 做 PDF 层深检）→ `npm run audit`（数据完备度 [A1]-[A10]）→ **全页目检** → 封面逐张目视核对
 - [ ] ⑤ 交付：`npm run pack -- --pages-reviewed --covers-reviewed`（一键产出 `_deliver/`：PDF + HTML + 分享卡 + 来源台账 + 交付说明，说明里带**核验状态表**），细节见 `references/build.md`
 
 **④ 的全页目检是硬要求**：`npm run sheet` 出联络表 → **agent 亲自逐页读** `_sheets/` 的 PNG，核对空白页 / 溢出 / 封面张冠李戴 / 乱码。不能用脚本断言代替。（若你的环境另有视觉验收子代理，可作为可选增强接上——**它不是本 skill 的依赖**。）
@@ -112,7 +112,7 @@ description: Use when 用户想把番剧/动画做成"收藏册/图鉴/纪念册
 - **取数工具**：`tvly`（Tavily CLI，Windows 要 `PYTHONIOENCODING=utf-8`）与 `curl`——都不随包提供
 - **agent 能力**：文件读写 + Shell + 联网搜索 + **多模态读图**（封面目检必需）。任何满足这四点的 agent（Claude Code / ZCode / Cursor / DSH 等）都能跑，无厂商绑定
 - 模式 B 另需 ffmpeg（抽帧补封面；Windows 下中文路径要用 ASCII 临时目录中转）
-- 拿不准就先跑 `npm run doctor`：它一次把 node / python / 字体 / 浏览器 / curl / tvly / config 全查一遍并给出修法
+- 拿不准就先跑 `npm run doctor`：它一次把 node / python / 字体 / 浏览器 / curl / tvly / config / 重复安装（同名 skill 装了两份）全查一遍并给出修法
 - 组件与字体的许可义务见同目录 `THIRD_PARTY_NOTICES.md`
 
 ## 详细版

@@ -95,9 +95,10 @@
    ```bash
    npm i                                    # 装依赖（首次）
    # 把 config.json 的 root 改成你的项目根，然后：
-   npm run doctor                           # 环境自检（node/python/字体/浏览器/curl/tvly）
+   npm run doctor                           # 环境自检（node/python/字体/浏览器/curl/tvly/重复安装）
    npm run pipeline                         # 一键：字体子集 → 两轮构建渲染 → 页码核对
-   npm run check                            # 产物断言（13 条：完整性 / 页码 / 两轮收敛）→ 写 _check.json
+   npm run check                            # 产物断言（17 条：完整性 / 页码 / 两轮收敛 / PDF 层）→ 写 _check.json
+   npm run probe                            # 只跑 PDF 层深检（正文缺字 + 书签）→ 写 _pdfprobe.json
    npm run audit                            # 数据完备度 → 写 _audit.json 与 receipts/<作品名>.json
    npm run sheet                            # 生成全页联络表（目检用）
    npm run pack -- --pages-reviewed --covers-reviewed   # 交付（签署你确实做过的目检）
@@ -110,7 +111,7 @@
 
 | 环节 | 凭据 |
 | --- | --- |
-| 产物断言 `[C1]-[C13]` | `anime_build/_check.json`（脚本产出，可复现） |
+| 产物断言 `[C1]-[C17]` | `anime_build/_check.json`（脚本产出，可复现） |
 | 数据完备度 `[A1]-[A10]` | `anime_build/_audit.json`（脚本产出，可复现） |
 | **全页目检** | `pack --pages-reviewed` 的**声明**（`npm run sheet` 的 PNG 是材料，不是证据） |
 | **封面逐张目检** | `pack --covers-reviewed` 的**声明** |
@@ -125,19 +126,22 @@
 | `names_to_base.js` | 名单+调研 JSON → 构建输入（`npm run base`） |
 | `build_anime_html.js` | 排版 HTML（主题色/海报/结构化制作表/状态徽章/时间轴） |
 | `render_pw.js` | Playwright 渲染 PDF（书签+页脚） |
-| `anime_pagemap.js` | 书签反查每部起始页（两轮渲染的核心） |
-| `contact_sheet.js` | 全页联络表（目检用，`npm run sheet`） |
-| `doctor.js` | 环境自检（`npm run doctor`；node/python/字体/浏览器/curl/tvly/配置一次查完） |
-| `sources.js` | 素材来源台账（`npm run sources`；记录每张图的渠道与出处，公开分享时核对授权用） |
-| `pack.js` | 一键交付（`npm run pack`；把 PDF/HTML/分享卡/来源台账 + 自动生成的交付说明归拢到 `_deliver/`，说明里含核验状态表） |
+| `anime_pagemap.js` | 书签反查每部起始页（两轮渲染的核心）；同时检测**书签重名**（书名撞作品名会让页码取错页）并原子写盘 |
+| `contact_sheet.js` | 全页联络表（目检用，`npm run sheet`）；也支持**任意 PDF**：`node contact_sheet.js --pdf <路径> --out <目录>` |
+| `doctor.js` | 环境自检（`npm run doctor`；node/python/字体/浏览器/curl/tvly/配置/**重复安装**一次查完） |
+| `_titles.js` | 收录作品标题解析的单一事实源（pagemap 与 PDF 探针共用，避免两处漂移） |
+| `sources.js` | 素材来源台账（`npm run sources` 默认**导出**台账；`add` 记录、`list` 打印；公开分享时核对授权用） |
+| `pack.js` | 一键交付（`npm run pack`；把 PDF/HTML/分享卡/整页图/封面图/来源台账 + 自动生成的交付说明归拢到 `_deliver/`，说明里含核验状态表；`--strict` 可在有未核验项时非零退出） |
 | `_config.js` | 配置单一事实源（`config.json` + `ANIME_BOOK_*` 环境变量；所有脚本共用） |
 | `sync_version.js` | 版本号校验/同步（`npm run version:check` / `version:fix`；按 glob 发现清单，不写死路径） |
+
+**验收脚本**（`evals/`）：`check.js`（产物断言 `[C1]-[C17]`，纯 fs 零依赖）、`pdfprobe.js`（PDF 层深检：正文缺字 / 书签丢失 / 书签重名）、`audit.js`（数据完备度）、`lint_skill.js`（skill 信封与文档数字一致性）。
 
 **配置**：所有脚本统一读 `scripts/_config.js`（`root` = 项目根，`vroot` = 模式 B 视频库根，`fonts` = 自测用字体）；日常一条 `npm run pipeline` 跑完。
 
 ## 文档分级（入口很轻，细节按需读）
 
-`SKILL.md` 只放**执行流程 + 质检铁律 + 最硬的坑位**（约 10 KB），细节拆到 `references/`，agent 按需读、不必全量吃进上下文：
+`SKILL.md` 只放**执行流程 + 质检铁律 + 最硬的坑位**（刻意保持精简，细节一律外置），拆到 `references/`，agent 按需读、不必全量吃进上下文：
 
 | 文档 | 什么时候读 |
 | --- | --- |

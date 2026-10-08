@@ -20,19 +20,9 @@ const PDF = path.join(ROOT, 'anime_build', BOOK + '.pdf');
   if (!outline) { console.error('no outline'); process.exit(2); }
 
   // Chromium 生成的书签标题会吞掉部分空格 → 去空格比对
-  const norm = s => String(s).replace(/\s+/g, '');
-  // 标题来源 = base.json 的收录范围（册子里实际有的作品）；research 里多出的未收录稿子不算
-  const RDIR = path.resolve(ROOT, 'anime_research');
-  const base = JSON.parse(fs.readFileSync(path.join(ROOT, 'anime_base.json'), 'utf8'));
-  const titles = Object.values(base).map(rec => {
-    const rp = path.resolve(RDIR, rec.folder + '.json');
-    // 边界校验：目标必须落在 anime_research 目录内
-    if (rp === RDIR || !rp.startsWith(RDIR + path.sep)) return rec.title || rec.folder;
-    if (fs.existsSync(rp)) {
-      try { const r = JSON.parse(fs.readFileSync(rp, 'utf8')); return r.title_zh || rec.title || rec.folder; } catch (e) { /* fallthrough */ }
-    }
-    return rec.title || rec.folder;
-  }).filter(Boolean);
+  // 标题来源与去空格规则集中在 _titles.js（pdfprobe 用的是同一份，别在这里另写一套）
+  const { resolveTitles, norm } = require('./_titles');
+  const titles = resolveTitles(ROOT);
 
   async function pageOf(dest) {
     let d = dest;
@@ -48,6 +38,9 @@ const PDF = path.join(ROOT, 'anime_build', BOOK + '.pdf');
   }
 
   const map = {};
+  // 同一部作品被多条书签命中时记下全部页码：取最小页是"章节起始页"的正确语义，
+  // 但如果命中页互不相同，说明书签里有重名（最典型：书目 = 某部作品名），需要报出来。
+  const hitPages = new Map();
   for (const item of outline) {
     const t = norm(item.title);
     // 匹配优先级：完全相同 > 最长的被包含标题（避免 "Fate" 抢走 "Fate Zero" 的页码）
@@ -58,7 +51,10 @@ const PDF = path.join(ROOT, 'anime_build', BOOK + '.pdf');
     const hit = cand[0];
     if (!hit) continue;
     const p = await pageOf(item.dest);
-    if (p && (map[hit] == null || p < map[hit])) map[hit] = p;
+    if (!p) continue;
+    if (!hitPages.has(hit)) hitPages.set(hit, new Set());
+    hitPages.get(hit).add(p);
+    if (map[hit] == null || p < map[hit]) map[hit] = p;
   }
   const out = path.join(ROOT, 'anime_build', '_pagemap.json');
   fs.mkdirSync(path.dirname(out), { recursive: true });
@@ -67,8 +63,17 @@ const PDF = path.join(ROOT, 'anime_build', BOOK + '.pdf');
   if (fs.existsSync(out)) {
     try { fs.copyFileSync(out, path.join(path.dirname(out), '_pagemap.prev.json')); } catch (e) { /* 首次运行没有上一轮 */ }
   }
-  fs.writeFileSync(out, JSON.stringify(map, null, 1));
+  // 原子写：中断/磁盘满时不会留下截断的 JSON（截断会被 build 当成"空映射"，目录页码全变「·」）
+  const tmp = out + '.tmp';
+  fs.writeFileSync(tmp, JSON.stringify(map, null, 1));
+  fs.renameSync(tmp, out);
   console.log('pagemap:', JSON.stringify(map));
+  const ambiguous = [...hitPages.entries()].filter(([, s]) => s.size > 1).map(([k, s]) => k + '（第 ' + [...s].sort((a, b) => a - b).join('/') + ' 页都命中）');
+  if (ambiguous.length) {
+    console.warn('⚠ 书签重名，页码可能取错：' + ambiguous.join('、'));
+    console.warn('  典型原因：书名与某部作品名相同（总览页标题也会生成书签）→ 目录页码会印成总览页页码。');
+    console.warn('  `npm run check` 的 [C17] 会把它算作失败。');
+  }
   const missing = titles.filter(t => map[t] == null);
   if (missing.length) {
     // 只告警、不设非零退出码：pipeline 是 && 链，退出码会掐断第二轮 build/render，

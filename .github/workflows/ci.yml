@@ -129,3 +129,109 @@ jobs:
           node pack.js --out "$RUNNER_TEMP/pack-signed" --pages-reviewed --covers-reviewed >/dev/null
           grep -q '已声明由 agent 逐页看过' "$RUNNER_TEMP/pack-signed/交付说明.md" || { echo "::error::签署后没有记录声明"; exit 1; }
           echo "✓ 交付说明如实反映核验状态（缺收据 / 未声明 / 已声明三种都验过）"
+
+      # ---- 以下几条对应 2026-10 审计发现的真实缺陷（每条都先复现过）----
+
+      - name: 负向测试 ④ 书名与某部作品名相同时，目录页码不得取到前置页
+        working-directory: anime-collection-book/skills/anime-collection-book/scripts
+        env:
+          ANIME_BOOK_ROOT: ${{ env.ACB_ROOT }}
+          ANIME_BOOK_TITLE: 星海旅人
+          # CI 用程序生成的测试字体，靠环境变量传入（fonts/ 里没有真字体）——漏了这行会让 pipeline 直接失败
+          ANIME_BOOK_FONT_REGULAR: ${{ env.ACB_ROOT }}/fonts/Smoke-Regular.ttf
+          ANIME_BOOK_FONT_MEDIUM: ${{ env.ACB_ROOT }}/fonts/Smoke-Medium.ttf
+        run: |
+          # 曾经的 bug：总览页标题也是 h1 → 生成同名书签 → pagemap 取最小页 →
+          # 目录把该章页码印成总览页页码（实测印 002，该章实际在第 4 页），且 16 条断言全绿。
+          npm run pipeline >/dev/null
+          node -e "const m=require(process.env.ANIME_BOOK_ROOT+'/anime_build/_pagemap.json');const p=m['星海旅人'];if(!(p>2)){console.error('::error::书名=作品名时页码取到了前置页：'+p);process.exit(1)}console.log('✓ 页码 =',p)"
+          # [C17] 必须绿：书签里不能有重复的"当键用"标题
+          npm run check >/dev/null || { echo "::error::书名=作品名时 check 未全绿"; exit 1; }
+          echo "✓ 书名撞作品名 → 页码正确且 [C17] 无重复书签"
+
+      - name: 负向测试 ④b [C17] 必须能抓到重复书签（防新断言恒真）
+        working-directory: anime-collection-book/skills/anime-collection-book/scripts
+        env:
+          ANIME_BOOK_ROOT: ${{ env.ACB_ROOT }}
+        run: |
+          R="$ANIME_BOOK_ROOT/anime_build/_pdfprobe.json"
+          cp "$R" "$RUNNER_TEMP/probe.real"
+          node -e "const fs=require('fs'),f=process.env.ANIME_BOOK_ROOT+'/anime_build/_pdfprobe.json';const r=JSON.parse(fs.readFileSync(f,'utf8'));r.duplicateOutlineTitles=['星海旅人'];fs.writeFileSync(f,JSON.stringify(r,null,1))"
+          set +e
+          node ../evals/check.js > "$RUNNER_TEMP/negative4b.log" 2>&1
+          code=$?
+          set -e
+          cp "$RUNNER_TEMP/probe.real" "$R"
+          cat "$RUNNER_TEMP/negative4b.log"
+          if [ "$code" -eq 0 ]; then echo "::error::注入重复书签后 check 竟然通过了（[C17] 形同虚设）"; exit 1; fi
+          grep -q '\[C17\]' "$RUNNER_TEMP/negative4b.log" || { echo "::error::失败信息里没有 [C17]"; exit 1; }
+          echo "✓ 重复书签 → check 失败并报 [C17]"
+
+      - name: 恢复默认书名与收据
+        working-directory: anime-collection-book/skills/anime-collection-book/scripts
+        env:
+          ANIME_BOOK_ROOT: ${{ env.ACB_ROOT }}
+          ANIME_BOOK_FONT_REGULAR: ${{ env.ACB_ROOT }}/fonts/Smoke-Regular.ttf
+          ANIME_BOOK_FONT_MEDIUM: ${{ env.ACB_ROOT }}/fonts/Smoke-Medium.ttf
+        run: |
+          # ④/④b 期间换过书名、动过探针收据；恢复成默认状态，避免污染后续 pack 用例
+          # （pack 现在会校验 root/书名/PDF 哈希，收据不对会直接判"不属于本产物"）
+          npm run pipeline >/dev/null
+          npm run check >/dev/null
+          npm run audit >/dev/null || true
+          # 恢复默认书名并重生成收据，避免污染后续步骤（pack 现在会校验收据属于本产物）
+          unset ANIME_BOOK_TITLE
+          npm run pipeline >/dev/null
+          npm run check >/dev/null
+          npm run audit >/dev/null || true
+
+      - name: 负向测试 ⑤ --force 不得删除用户目录里的非本工具文件
+        working-directory: anime-collection-book/skills/anime-collection-book/scripts
+        env:
+          ANIME_BOOK_ROOT: ${{ env.ACB_ROOT }}
+        run: |
+          D="$RUNNER_TEMP/user-dir"
+          rm -rf "$D" && mkdir -p "$D"
+          echo "私人内容" > "$D/私人文件.txt"
+          set +e
+          node pack.js --out "$D" --force > "$RUNNER_TEMP/negative5.log" 2>&1
+          code=$?
+          set -e
+          cat "$RUNNER_TEMP/negative5.log" || true
+          test -f "$D/私人文件.txt" || { echo "::error::--force 删掉了非本工具文件（数据丢失）"; exit 1; }
+          test "$code" -ne 0 || { echo "::error::非本工具目录竟然打包成功了"; exit 1; }
+          echo "✓ 非本工具目录被拒绝，用户文件完好无损"
+
+      - name: 负向测试 ⑥ 交付包不得含本机绝对路径（台账泄漏）
+        working-directory: anime-collection-book/skills/anime-collection-book/scripts
+        env:
+          ANIME_BOOK_ROOT: ${{ env.ACB_ROOT }}
+        run: |
+          # 曾经的 bug：sources 默认只 list 不产文件（死循环），而它写出的台账第一行是「项目根：<绝对路径>」
+          npm run sources >/dev/null
+          test -f "$ANIME_BOOK_ROOT/anime_build/_sources.md" || { echo "::error::npm run sources 仍未产出台账（默认应为 report）"; exit 1; }
+          node pack.js --out "$RUNNER_TEMP/pack-privacy" >/dev/null
+          # 只扫文本类文件：封面图是二进制，grep -r 可能在随机字节上误报，导致这条 gate 变得不稳定
+          TEXT=(--include='*.md' --include='*.html' --include='*.json' --include='*.txt')
+          if grep -rqF "${TEXT[@]}" "$ANIME_BOOK_ROOT" "$RUNNER_TEMP/pack-privacy/"; then
+            echo "::error::交付包含本机绝对路径："; grep -rnF "${TEXT[@]}" "$ANIME_BOOK_ROOT" "$RUNNER_TEMP/pack-privacy/" | head -5; exit 1
+          fi
+          if grep -rqE "${TEXT[@]}" '/home/runner|[A-Za-z]:\\+Users' "$RUNNER_TEMP/pack-privacy/"; then
+            echo "::error::交付包含疑似本机路径"; grep -rnE '/home/runner|[A-Za-z]:\\+Users' "$RUNNER_TEMP/pack-privacy/" | head -5; exit 1
+          fi
+          echo "✓ 台账已产出，且交付包内无本机绝对路径"
+
+      - name: 负向测试 ⑦ 伪造/串项目的收据不得被标成"全部通过"
+        working-directory: anime-collection-book/skills/anime-collection-book/scripts
+        env:
+          ANIME_BOOK_ROOT: ${{ env.ACB_ROOT }}
+        run: |
+          R="$ANIME_BOOK_ROOT/anime_build/_check.json"
+          cp "$R" "$RUNNER_TEMP/check.real"
+          node -e "const fs=require('fs'),f=process.env.ANIME_BOOK_ROOT+'/anime_build/_check.json';const r=JSON.parse(fs.readFileSync(f,'utf8'));r.root='D:\\\\other-person\\\\project';r.book='别人的书';if(r.artifacts)r.artifacts.pdf='deadbeef';fs.writeFileSync(f,JSON.stringify(r,null,1))"
+          node pack.js --out "$RUNNER_TEMP/pack-forged" >/dev/null
+          grep -q '不属于本产物' "$RUNNER_TEMP/pack-forged/交付说明.md" || {
+            echo "::error::串项目的收据被当成了本产物的核验凭据："; grep -n '产物断言' "$RUNNER_TEMP/pack-forged/交付说明.md"; exit 1
+          }
+          cp "$RUNNER_TEMP/check.real" "$R"
+          echo "✓ 收据与产物（root/书名/PDF 哈希）绑定校验生效"

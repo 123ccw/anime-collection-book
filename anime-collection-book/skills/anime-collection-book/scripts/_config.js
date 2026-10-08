@@ -31,12 +31,15 @@ function load(opts) {
   const raw = readConfig();
   const fromFile = raw.__error ? {} : raw;
 
-  if (raw.__error && !o.soft) {
+  const env = process.env;
+
+  // 只在"真的会回退到内置默认根目录"时才警告。
+  // 设了 ANIME_BOOK_ROOT（CI / 临时自测的标准做法）就不该刷屏——既没回退，警告还会误导排查方向。
+  if (raw.__error && !o.soft && !env.ANIME_BOOK_ROOT) {
     // 静默回退会让人对着陌生的 root 排查半天，这里必须出声
-    console.warn('⚠ 读不到 ' + CONFIG_PATH + '（' + (raw.__error.code || raw.__error.message) + '）——请复制 config.example.json 为 config.json 并改 root；本次回退默认值');
+    console.warn('⚠ 读不到 ' + CONFIG_PATH + '（' + (raw.__error.code || raw.__error.message) + '）——请复制 config.example.json 为 config.json 并改 root；本次回退默认值 ' + DEFAULT_ROOT);
   }
 
-  const env = process.env;
   const pick = (key, envKey) => {
     const v = env[envKey];
     return v != null && String(v).trim() !== '' ? String(v) : fromFile[key];

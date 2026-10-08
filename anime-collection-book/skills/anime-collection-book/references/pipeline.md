@@ -44,7 +44,7 @@ Chromium 排版时无法预知每章起始页。做法：
 2. 第一轮渲染出 PDF → pdfjs 读 outline（书签来自 HTML 的 h1）→ 反查每部起始页 → `_pagemap.json`
 3. 第二轮构建把真实页码印进槽位 → 再渲染 → **再反查一次**，两轮页码必须完全一致（槽位等宽保证印入真实页码后布局零漂移）
 
-书签反查时**去空格比对**：Chromium 生成的书签标题会吞掉部分空格。
+书签反查时**去掉所有空白比对**（`_titles.js` 的 `norm()` 用 `/\s+/g`）：Chromium 生成的书签标题会吞掉部分空格。
 
 ## 三、版式关键结论
 
@@ -82,7 +82,7 @@ page.node.addAnnot(pdf.context.obj({
 1. **AniList 只用罗马字/英文名搜，拿到结果先核对 `title` 再用**（详见 §一）：中文/日文名当搜索词在各接口表现不一；按记忆猜 id 更危险。**这条是"名字搜索必串味"的第一道闸门**，写在这里以防只读本节的人漏掉
 2. 分章页眉做不到 → 边距预留 + 盖章（见上）
 3. 负边距刊头画到上一页页尾（还会压断下一元素）
-4. 书签标题吞空格 → 去空格比对
+4. 书签标题吞空格 → 去掉所有空白比对（`norm()` 用 `/\s+/g`）
 5. **ffmpeg 中文路径** `Illegal byte sequence`：cmd+chcp 65001 只能救输出，输入路径要用同卷 ASCII 临时目录中转；硬链接在 exFAT 分区不可用，直接复制
 6. **Windows 进程参数非 ASCII 转码**：全角搜索词走临时文件 + `curl --data-binary @file`
 7. **explorer 文件夹图标缓存顽固**：desktop.ini 改完不刷新 → 重启 explorer + 删 `%LOCALAPPDATA%\Microsoft\Windows\Explorer\iconcache*.db`

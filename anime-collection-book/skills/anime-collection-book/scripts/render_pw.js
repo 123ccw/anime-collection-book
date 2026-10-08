@@ -25,10 +25,35 @@ function esc(s) { return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(
 
 (async () => {
   let browser, page;
-  try { browser = await chromium.launch({ headless: true, args: ARGS }); }
-  catch (e) {
-    try { browser = await chromium.launch({ channel: 'msedge', headless: true, args: ARGS }); }
-    catch (e2) { browser = await chromium.launch({ headless: true, args: ARGS.concat(['--no-sandbox', '--disable-dev-shm-usage']) }); }
+  // 兜底链：Playwright 自带 Chromium → 系统 Edge/Chrome（channel）→ 系统浏览器的绝对路径 → 无沙箱重试。
+  // 补绝对路径是因为 channel 只认 Edge/Chrome 的注册安装，Linux 上的 chromium / chromium-browser、
+  // 以及部分发行版的 google-chrome 不在其中——而 SKILL.md 声称 Linux 核心流程可用。
+  const SYS_BROWSERS = [
+    'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe',
+    'C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe',
+    'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+    'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
+    '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge',
+    '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+    '/usr/bin/chromium', '/usr/bin/chromium-browser',
+    '/usr/bin/google-chrome', '/usr/bin/google-chrome-stable', '/snap/bin/chromium',
+  ];
+  const attempts = [
+    { headless: true, args: ARGS },
+    { channel: 'msedge', headless: true, args: ARGS },
+    { channel: 'chrome', headless: true, args: ARGS },
+    ...SYS_BROWSERS.filter((f) => fs.existsSync(f)).map((f) => ({ executablePath: f, headless: true, args: ARGS })),
+    { headless: true, args: ARGS.concat(['--no-sandbox', '--disable-dev-shm-usage']) },
+  ];
+  let lastErr = null;
+  for (const opt of attempts) {
+    try { browser = await chromium.launch(opt); break; }
+    catch (e) { lastErr = e; }
+  }
+  if (!browser) {
+    console.error('FAILED: 启动不了任何浏览器（含系统 Edge/Chrome/Chromium）——' + String(lastErr && lastErr.message || '').split('\n')[0]);
+    console.error('  → 在 scripts/ 目录执行 npx playwright install chromium，或安装 Edge/Chrome/Chromium 后重试');
+    process.exit(2);
   }
 
   const htmlPath = path.join(SRC, NAME);
