@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.8.0
+
+**个人数据层（P0）**：给收藏册加一层"只有用户本人有"的数据——我的评分、短评、首看日、已收状态。起因是一条已经存在的丢数据路径：`franchise[].collected` 一直存在 `anime_research/<作品>.json` 里，而那是调研产物，重跑一次调研就会把用户标的"已收"覆盖掉。
+
+- 新增 `userdata.json`（`<项目根>/userdata.json`，schema v1）：`work_id` 本地稳定主键 + `ids` 站点 ID 映射 + `score{value,scale,source}` / `comment` / `first_watched` / `franchise[].collected`
+- 新增 `scripts/_userdata.js`：读写单一实现。原子写（tmp+rename）、`reader` 只读接口、**缺失=正常**（回退研究稿）、**损坏=告警并非零退出且绝不覆盖**
+- 新增 `scripts/migrate_userdata.js`（`npm run userdata`）：把研究稿里的"已收"迁进 userdata，只补缺失、绝不覆盖已有用户值，无新增就不写文件（幂等）
+- 构建侧接通：`build_anime_html.js` 只读 userdata —— 系列条目的已收状态优先取它（查不到回退研究稿，老项目零改动）；章节头渲染**我的评分**、章末渲染**我的短评**卡（anime / novel 双域标签同步）
+- 新增 `evals/test_userdata.js`（`npm run test:userdata`）：8 条回归测试，含"跑一次 build 后 userdata 字节不变"（构建失败也必须不变）
+- 新增 `references/userdata.md`：schema、硬规则、迁移、验收、MAL XML 字段映射（导入器留作下一步）
+- 本机验证：`test:userdata` 8/8；anime fixture 两轮 `pipeline` + `check` 17/17；userdata 覆盖可逆（研究稿 2/3 → 用户改已收 3/3 → 改回 2/3）；全量 pipeline 后 `userdata.json` 的 hash 不变；写坏 userdata 时 build 非零退出且文件未被覆盖
 ## 1.7.1
 
 修掉一个「文档与验收器打架」的缺陷，并给第二领域包补上回归保护。

@@ -14,11 +14,12 @@
 | `title` | 书名：封面/总览/封底显示，**同时决定输出文件名**（`anime_build/<title>.html` 与 `.pdf`） |
 | `credits` | 封底"资料来源"行；留空则用内置默认（公开资料整理 + 不指向具体站点的兜底表述） |
 | `fonts` | 可选，仅 CI / 离线自测：`{ "regular": "<TTF 绝对路径>", "medium": "..." }` 顶替霞鹜文楷 |
+| `userdata` | 可选，用户个人数据文件路径；默认 `<root>/userdata.json`（schema / 迁移 / 验收见 `userdata.md`）。**构建只读**，别在构建流程里改它 |
 
 改完照常 `npm run pipeline`——字体子集会自动收录新书名字符。
 
 **环境变量优先于 `config.json`**（CI 与临时自测靠它避免改坏本机配置）：
-`ANIME_BOOK_ROOT` · `ANIME_BOOK_VROOT` · `ANIME_BOOK_DOMAIN` · `ANIME_BOOK_TITLE` · `ANIME_BOOK_CREDITS` · `ANIME_BOOK_FONT_REGULAR` · `ANIME_BOOK_FONT_MEDIUM`。
+`ANIME_BOOK_ROOT` · `ANIME_BOOK_VROOT` · `ANIME_BOOK_DOMAIN` · `ANIME_BOOK_TITLE` · `ANIME_BOOK_CREDITS` · `ANIME_BOOK_USERDATA` · `ANIME_BOOK_FONT_REGULAR` · `ANIME_BOOK_FONT_MEDIUM`。
 读取逻辑集中在 `scripts/_config.js`（单一事实源，所有脚本共用）。
 
 ## 一键命令
@@ -32,6 +33,8 @@ npm run audit      # 数据完备度（哪部缺字段、哪些还写着"未核�
 npm run sheet      # 生成全页联络表（目检用；也支持任意 PDF：node contact_sheet.js --pdf <路径> --out <目录> [--scale <n>]）
 npm run cards      # 导出收藏卡 PNG + 高清整页图（anime_build/_cards 与 _gallery）
 npm run sources    # 出素材来源台账（anime_build/_sources.md）——公开分享时的自证材料
+npm run userdata   # 把研究稿里的"已收"迁进 userdata.json（只补缺失、幂等；`-- --dry-run` 只看不写）
+npm run test:userdata  # 用户数据层回归测试（读写 / 原子写 / 损坏保护 / 迁移幂等 / 构建只读）
 npm run pack       # 一键交付：把成品与说明归拢到 <项目根>/_deliver/
 npm run candidates -- <safebooru_tag>   # 候选图对比（兜底渠道；--pick <编号> 取图入库，见 image-selection.md）
 npm run lint       # skill 信封校验（frontmatter / 引用完整性 / 断言条数与坑位数是否与代码一致）
