@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.7.1
+
+修掉一个「文档与验收器打架」的缺陷，并给第二领域包补上回归保护。
+
+- **novel 模式下 `npm run check` 不再必然失败。** `references/domain-novel.md` 写明角色 `cover`「无也可，自动降级为纯排印」，但 `evals/check.js` 把「未声明 cover」无条件计入 `[C7]` 失败项——按文档合法使用的人必然拿到"验收红 + 交付说明标未核验"。现在 `check.js` 按 `_config.js` 的 `DOMAIN` 分流：novel 未声明 → 降级 + `⚠` 提示（不判失败）；**两种领域下「声明了 cover 却找不到文件」仍是硬失败**，`[C7]` 没有被放空。
+- **CI 补 novel job**（两轮 pipeline → check → audit）。此前 7 条负向测试全在 anime 域，novel 从未进过 CI——这正是上面那条冲突能活到现在的原因。
+- **新增负向测试 ⑧**：novel 下给角色声明一个不存在的 cover，`check` 必须失败并报 `[C7]`，防止"放宽"在后续改动里被扩大成放空。
+- **新增信封卫生守卫**（syntax job）：`git ls-files` 里出现 `node_modules/` 或 `config.json` 直接失败——这两样一旦误入库，信封会带上 90MB 依赖或使用者的本机路径。
+- 本机验证：anime fixture 17/17；novel fixture 16/17 → **17/17**；负向①（anime 移走封面文件）仍失败并报 `[C7]`；负向⑧ 16/17 且失败项只有 `[C7]`。
+
 ## 1.7.0
 
 **改名 + 双领域定位**：`anime-collection-book` → **`fanbook`**。
