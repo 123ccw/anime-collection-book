@@ -39,37 +39,73 @@ const L = DOMAIN === 'novel' ? {
   almFr: '待补条目', almFrSub0: '全部系列条目均在收藏中', almFrSubN: '各系列盘点出的未收条目',
   tail: '剧情一览 · 原作情报 · 更新动态 · 收藏清单', cardBadge: '收藏卡',
 };
+// 构建/调研过程中发现的数据问题（字段形状不对、JSON 解析失败等）；末尾非空则 exit 1
+const warnings = [];
+// 字段形状严格化：null/undefined 是正常缺省；真数组原样返回；其它类型告警并计入 warnings
+function arrStrict(v, field, work) {
+  if (v == null) return [];
+  if (Array.isArray(v)) return v;
+  console.warn('⚠ 字段形状不对（应为数组）：' + work + '.' + field);
+  warnings.push(work + '.' + field);
+  return [];
+}
+// 统一 JSON 读取：剥 BOM（PowerShell/记事本常见）并给出中文解析原因
+function readJson(file) {
+  let txt = fs.readFileSync(file, 'utf8');
+  const bom = txt.charCodeAt(0) === 0xFEFF;
+  if (bom) txt = txt.slice(1);
+  try { return JSON.parse(txt); }
+  catch (e) { throw new Error('JSON 解析失败（' + file + (bom ? '，文件带 BOM' : '') + '）：' + e.message); }
+}
 const BASE_FILE = path.join(ROOT, 'anime_base.json');
 if (!fs.existsSync(BASE_FILE)) {
   console.error('未找到 ' + BASE_FILE + ' ——模式 A 请先跑 npm run base；或检查 config.json 的 root 是否指向项目根'); process.exit(1);
 }
-const base = JSON.parse(fs.readFileSync(BASE_FILE, 'utf8'));
+let base;
+try { base = readJson(BASE_FILE); }
+catch (e) { console.error('无法读取 ' + BASE_FILE + '：' + e.message); process.exit(1); }
 
 // 数据归一化：调研 JSON 是 LLM 产出的不可信输入，eps/airdate 可能是字符串——
 // 字符串 eps 会让求和变拼接（"012"），字符串时间戳会让 new Date 解析成 Invalid Date 直接抛错
-const toMs = v => { if (v == null || v === '') return null; const n = Number(v); if (Number.isFinite(n) && n > 0) return n; const p = Date.parse(v); return Number.isFinite(p) ? p : null; };
-for (const s of Object.values(base)) {
+const toMs = v => {
+  if (v == null || v === '') return null;
+  const n = Number(v);
+  if (Number.isFinite(n)) {
+    if (n >= 1e12) return n;                    // 13 位以上：毫秒时间戳
+    if (n >= 1e9 && n < 1e10) return n * 1000;  // 10 位：秒时间戳
+    console.warn('⚠ 时间值不可信（既非毫秒也非秒时间戳），已置空：' + v);   // 如 2022 / 20221008，静默变 1970 更糟
+    return null;
+  }
+  const p = Date.parse(v);   // 非纯数字字符串走 Date.parse 兜底（如 "2022-04-05"）
+  return Number.isFinite(p) ? p : null;
+};
+for (const [k, s] of Object.entries(base)) {
   s.airdate = toMs(s.airdate);
-  s.units = (s.units || []).map(u => ({ ...u, eps: Number(u.eps) || 0, airdate: toMs(u.airdate) }));
+  s.units = arrStrict(s.units, 'units', s.folder || k).map(u => ({ ...u, eps: Number(u.eps) || 0, airdate: toMs(u.airdate) }));
 }
 
 // 目录页码：_pagemap.json 由 anime_pagemap.js 从上一轮渲染的 PDF 书签导出；两轮构建布局一致
 let PAGE_MAP = {};
 const pagemapFile = path.join(ROOT, 'anime_build', '_pagemap.json');
 if (fs.existsSync(pagemapFile)) {
-  try { PAGE_MAP = JSON.parse(fs.readFileSync(pagemapFile, 'utf8')); } catch (e) { console.error('bad pagemap:', e.message); }
+  try { PAGE_MAP = readJson(pagemapFile); } catch (e) { console.error('bad pagemap:', e.message); }
 }
 const pgOf = t => (PAGE_MAP[t] != null ? String(PAGE_MAP[t]).padStart(3, '0') : '·');
 
 // 调研成果合并
 const research = {};
+const researchErrors = [];   // 文件存在但解析失败——与"文件不存在/没命中"分开报
 const rdir = path.join(ROOT, 'anime_research');
 if (fs.existsSync(rdir)) {
   for (const f of fs.readdirSync(rdir).filter(f => f.endsWith('.json'))) {
     try {
-      const r = JSON.parse(fs.readFileSync(path.join(rdir, f), 'utf8'));
+      const r = readJson(path.join(rdir, f));
       research[r.folder] = r;
-    } catch (e) { console.error('bad research json:', f, e.message); }
+    } catch (e) {
+      console.error('bad research json:', f, e.message);
+      researchErrors.push(f);
+      warnings.push('research:' + f);
+    }
   }
 }
 
@@ -108,11 +144,14 @@ async function extractAccent(imgPath) {
 
 // ---- 文楷子集 data URI（collect_fonts.js 生成） ----
 const FONT_R = path.join(ROOT, 'fonts', 'wk-sub-regular.woff2');
-if (!fs.existsSync(FONT_R)) {
-  console.error('未找到 ' + FONT_R + ' ——请先跑字体子集（npm run pipeline，或单独 node collect_fonts.js）'); process.exit(1);
+const FONT_M = path.join(ROOT, 'fonts', 'wk-sub-medium.woff2');
+for (const f of [FONT_R, FONT_M]) {
+  if (!fs.existsSync(f)) {
+    console.error('未找到 ' + f + ' ——请先跑字体子集（npm run pipeline，或单独 node collect_fonts.js）'); process.exit(1);
+  }
 }
 const WK_REG = fs.readFileSync(FONT_R).toString('base64');
-const WK_MED = fs.readFileSync(path.join(ROOT, 'fonts', 'wk-sub-medium.woff2')).toString('base64');
+const WK_MED = fs.readFileSync(FONT_M).toString('base64');
 
 // ---- 颜色工具 ----
 function hexRgb(h) { const s = h.replace('#', ''); return [parseInt(s.slice(0, 2), 16), parseInt(s.slice(2, 4), 16), parseInt(s.slice(4, 6), 16)]; }
@@ -156,8 +195,9 @@ function stClass(s) {
 }
 
 const fmtDate = ts => ts ? new Date(ts).toISOString().slice(0, 10).replace(/-/g, '.') : '';
-const totalEps = r => (r.units || []).reduce((s, u) => s + (u.eps || 0), 0);
-const unitCount = r => (r.units || []).filter(u => (u.eps || 0) > 0).length;
+const totalEps = r => arrStrict(r.units, 'units', r.folder || '?').reduce((s, u) => s + (u.eps || 0), 0);
+// 单元数口径与收藏详情表一致：eps 缺失/为 0 的单元（如剧场版）也保留在表里，一并计入
+const unitCount = r => arrStrict(r.units, 'units', r.folder || '?').length;
 // 当前年月（UTC 口径，与 fmtDate 一致）——总览刊头 + 各章刊头共用，避免年份写死
 const NOW = (() => { const d = new Date(); return d.getFullYear() + '.' + String(d.getMonth() + 1).padStart(2, '0'); })();   // 本地时区：用 UTC 会让跨月跑的两轮刊头月份不同，白添漂移源
 
@@ -187,7 +227,8 @@ const CSS = `
 
   /* ===== 首页总览 ===== */
   .thd .kick { font-size: 9pt; font-weight: 500; letter-spacing: .32em; color: #4f46e5; margin-bottom: 3mm; }
-  .thd h1 { font-family: "LXGW WenKai"; font-weight: 700; font-size: 31pt; margin: 0 0 3.5mm; color: #141419; }
+  /* 总览页大标题故意不用 h1：Chromium 会把 h1 变成 PDF 书签，与同名章节页书签撞车 */
+  .thd h1, .thd .thd-title { font-family: "LXGW WenKai"; font-weight: 700; font-size: 31pt; margin: 0 0 3.5mm; color: #141419; }
   .thd .sub { color: #6b6b76; font-size: 10.5pt; }
   .thd { border-bottom: 1.6px solid #4f46e5; padding-bottom: 6mm; margin-bottom: 8mm; }
   .stats { display: flex; gap: 5mm; margin: 0 0 8mm; }
@@ -336,8 +377,7 @@ const CSS = `
 
 // ---- 组装 ----
 (async () => {
-// LLM 产出不可控（"rating": 8.5、"unit_synopses": {} 都出现过），所有数组字段统一兜底
-const arr = v => (Array.isArray(v) ? v : []);
+// LLM 产出不可控（"rating": 8.5、"unit_synopses": {} 都出现过），数组字段一律走模块级 arrStrict（形状不对会告警）
 const shows = Object.values(base);
 let tocRows = '';
 const chapters = [];
@@ -350,11 +390,17 @@ for (const [i, rec] of shows.entries()) {
   const synopsis = r.synopsis || rec.overview || '';
   const src = r.source || '';
   const upd = r.update || '';
-  const genres = (arr(r.genres).length ? arr(r.genres) : arr(rec.genres)).filter(g => g && !/^(动画|动漫)$/.test(g)).slice(0, 5);
+  const genresR = arrStrict(r.genres, 'genres', rec.folder);
+  const genresB = arrStrict(rec.genres, 'genres', rec.folder);
+  const genres = (genresR.length ? genresR : genresB)
+    .filter(g => typeof g === 'string' && g && !/^(动画|动漫)$/.test(g)).slice(0, 5);
   // 评分：research.rating 优先（模式 B 的 base 由使用者自备扫描脚本生成，未必带 rating），回退 base.rating
-  const ratingList = arr(r.rating).length ? arr(r.rating) : arr(rec.rating);
-  const ratings = ratingList.filter(x => x && x.score > 0).map(x => `${x.site === 'bangumi' ? 'Bangumi' : String(x.site || '').toUpperCase()} <b>${x.score}</b>`).join(' · ');
-  const air0 = fmtDate(rec.airdate || arr(rec.units).map(u => u.airdate).filter(Boolean).sort()[0]);
+  // 数字形式（"rating": 8.5）直接当一条评分渲染，不丢
+  const ratingOf = v => (typeof v === 'number' && v > 0) ? [{ site: '', score: v }] : arrStrict(v, 'rating', rec.folder);
+  const ratingList = (() => { const rr = ratingOf(r.rating); return rr.length ? rr : ratingOf(rec.rating); })();
+  const ratings = ratingList.filter(x => x && x.score > 0)
+    .map(x => `${x.site ? (x.site === 'bangumi' ? 'Bangumi' : String(x.site).toUpperCase()) + ' ' : ''}<b>${x.score}</b>`).join(' · ');
+  const air0 = fmtDate(rec.airdate || arrStrict(rec.units, 'units', rec.folder).map(u => u.airdate).filter(Boolean).sort()[0]);
   // 封面优先级：research.cover（官方海报覆盖，相对 anime_research/）> 视频库内封面（模式 B）
   const rcoverRel = r.cover ? String(r.cover).replace(/\//g, path.sep) : '';
   const rcoverAbs = rcoverRel && !rcoverRel.includes('..') ? path.join(rdir, rcoverRel) : '';
@@ -389,10 +435,11 @@ for (const [i, rec] of shows.entries()) {
   const musicPlatHtml = (r.music || r.platforms)
     ? `<h2>${L.hMusic}</h2><div class="pcard">${r.music ? `<div class="mline"><span class="mk">${L.mkMusic}</span><span class="mv">${esc(r.music)}</span></div>` : ''}${r.platforms ? `<div class="mline"><span class="mk">${L.mkPlat}</span><span class="mv">${esc(r.platforms)}</span></div>` : ''}</div>`
     : '';
-  const unitSops = arr(r.unit_synopses);
+  const unitSops = arrStrict(r.unit_synopses, 'unit_synopses', rec.folder);
   const sopOf = (name) => { const hit = unitSops.find((u) => u.name === name); return hit ? hit.text : ''; };
   // 单元名列宽按最长名字自适应（ASCII 半宽折算；短名不浪费宽，长名不硬折）
-  const unitsAll = arr(rec.units).filter(u => (u.eps || 0) > 0);
+  // eps 缺失/为 0 的单元（剧场版、特别篇等）保留在表里，集数显示 —
+  const unitsAll = arrStrict(rec.units, 'units', rec.folder);
   const vLen = s => String(s).replace(/[\x21-\x7E]/g, 'i').length;
   const nameW = Math.min(48, Math.max(26, Math.ceil(Math.max(0, ...unitsAll.map(u => vLen(u.name))) * 3.3) + 7));
   const unitRows = unitsAll
@@ -401,7 +448,7 @@ for (const [i, rec] of shows.entries()) {
     .map(u => {
       const sop = sopOf(u.name);
       if (unitSops.length && !sop) console.warn('⚠ 单元无剧透文案（name 须与 units 逐字一致）: ' + rec.folder + ' / ' + u.name);
-      return `<tr><td>${esc(u.name)}</td><td>${u.eps} ${L.epsSuffix}</td><td>${fmtDate(u.air) || '—'}</td>${
+      return `<tr><td>${esc(u.name)}</td><td>${u.eps ? u.eps + ' ' + L.epsSuffix : '—'}</td><td>${fmtDate(u.air) || '—'}</td>${
         unitSops.length ? `<td class="sop">${esc(sop)}</td>` : ''}</tr>`;
     })
     .join('');
@@ -411,7 +458,7 @@ for (const [i, rec] of shows.entries()) {
     ? `<div class="quote"><div class="qm">「</div><div class="qt">${esc(q.text)}</div>${q.speaker ? `<div class="qs">—— ${esc(q.speaker)}</div>` : ''}</div>`
     : '';
   // 系列完整度：franchise = 该系列全部条目盘点（collected 标是否已收）
-  const fr = Array.isArray(r.franchise) ? r.franchise.filter(f => f && f.name) : [];
+  const fr = arrStrict(r.franchise, 'franchise', rec.folder).filter(f => f && f.name);
   const frMiss = fr.filter(f => !f.collected);
   const frMissTxt = frMiss.map(f => `${f.kind ? f.kind + ' ' : ''}${f.name}${f.year ? '（' + f.year + '）' : ''}`).join('、');
   const frCardHtml = fr.length
@@ -479,7 +526,15 @@ const almHtml = (() => {
   const decKeys = Object.keys(decades).sort();
   const decMax = Math.max(1, ...decKeys.map(k => decades[k]));
   const genreCnt = {};
-  for (const s of shows) for (const g of ((research[s.folder] || {}).genres || s.genres || [])) genreCnt[g] = (genreCnt[g] || 0) + 1;
+  // 与章节标签同口径：优先 research.genres，过滤非字符串与「动画/动漫」（旧实现只看 s.genres 且不过滤）
+  for (const s of shows) {
+    const gr = arrStrict((research[s.folder] || {}).genres, 'genres', s.folder);
+    const gb = arrStrict(s.genres, 'genres', s.folder);
+    for (const g of (gr.length ? gr : gb)) {
+      if (typeof g !== 'string' || !g || /^(动画|动漫)$/.test(g)) continue;
+      genreCnt[g] = (genreCnt[g] || 0) + 1;
+    }
+  }
   const topGenre = Object.entries(genreCnt).sort((a, b) => b[1] - a[1])[0];
   const longest = showMeta.slice().sort((a, b) => b.total - a.total)[0];
   const doneCnt = shows.filter(s => stClass((research[s.folder] || {}).status || '') === 'std-done').length;
@@ -560,7 +615,7 @@ const html = `<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8">
 <div class="page ov-pg">
   <div class="thd">
     <div class="kick">${L.kick} · ${NOW}</div>
-    <h1>${esc(BOOK_TITLE)}</h1>
+    <div class="thd-title">${esc(BOOK_TITLE)}</div>
     <div class="sub">共 ${shows.length} ${L.person} · ${grandUnits} ${L.stUnit} · ${grand} ${L.chapName} ｜ ${L.tail}</div>
   </div>
   <div class="stats">
@@ -629,5 +684,20 @@ fs.writeFileSync(path.join(OUT, 'share_cards.html'), cardsHtml, 'utf8');
 const missing = shows.filter(s => !research[s.folder]).map(s => s.folder);
 console.log(`built ${shows.length} chapters -> anime_build/${BOOK}.html`);
 console.log(`share cards: ${showMeta.filter(m => m.cover).length} 张 -> anime_build/share_cards.html`);
-if (missing.length) console.log('no research for:', missing.join('、'));
+// 空作品集 / 缺调研 / 解析失败 / 字段形状问题都算阻塞：继续渲染只会产出只有封面/总览/封底的"空书"
+if (!shows.length) {
+  console.warn('⚠ anime_base.json 里没有任何作品（文件为空对象或字段缺失）——不会产出有效正文'); process.exitCode = 1;
+}
+if (missing.length) {
+  console.warn('⚠ 缺 research：以下作品在 anime_research/ 里没有命中对应 JSON（文件不存在或 folder 对不上）: ' + missing.join('、'));
+  process.exitCode = 1;
+}
+if (researchErrors.length) {
+  console.warn('⚠ research 解析失败：以下文件存在但读不出来（已跳过，原因见上方 bad research json）: ' + researchErrors.join('、'));
+  process.exitCode = 1;
+}
+if (warnings.length) {
+  console.warn('⚠ 数据字段形状/解析问题共 ' + warnings.length + ' 处，本次构建标记为失败（exit 1）');
+  process.exitCode = 1;
+}
 })().catch(e => { console.error('构建失败：', e.message); process.exit(1); });

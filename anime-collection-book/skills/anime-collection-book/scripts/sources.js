@@ -1,18 +1,21 @@
 // 素材来源台账：把每张图的「渠道 + 出处 URL + 取得日期」记下来，交付时导出成 _sources.md
 // 为什么：合规不该只停留在"文档里写一句仅个人收藏"。有了台账，公开分享或被人质疑时你能自证来源
 // 用法：
+//   node sources.js             → 同 report（默认动作就是出台账，跟文档承诺的 `npm run sources` 一致）
 //   node sources.js add --work <作品名> --kind cover|portrait --channel official|anilist|bangumi|wiki|safebooru|other --url <出处页面> [--note 备注]
 //   node sources.js report      → 写 <项目根>/anime_build/_sources.md
 //   node sources.js list        → 直接打印台账
 const fs = require('fs');
 const path = require('path');
-const { CHANNELS, ledgerPath, load, add } = require('./_ledger');
+const { CHANNELS, ledgerPath, load, add, todayLocal, failCorrupt } = require('./_ledger');
 
 // ---- 统一配置（单文件唯一事实源：scripts/_config.js；支持 ANIME_BOOK_* 环境变量覆盖）----
 const { ROOT } = require('./_config');
 
 const argv = process.argv.slice(2);
-const cmd = argv[0] || 'list';
+// 无参数默认 report：文档（references/build.md、compliance.md、image-selection.md）都写 `npm run sources` 会产出
+// anime_build/_sources.md，而 pack 又靠该文件是否存在决定打不打包 —— 默认只 list 会形成"终端让你跑、跑了永远没文件"的死循环
+const cmd = argv[0] || 'report';
 function opt(name, dflt) {
   const i = argv.indexOf('--' + name);
   return i >= 0 && argv[i + 1] && !argv[i + 1].startsWith('--') ? argv[i + 1] : dflt;
@@ -32,13 +35,19 @@ if (cmd === 'add') {
   }
   if (!url) { console.error('--url 必填（出处页面或图片地址）'); process.exit(1); }
   if (!['cover', 'portrait', 'other'].includes(kind)) { console.error('--kind 取值：cover / portrait / other'); process.exit(1); }
-  const f = add(ROOT, { work, kind, channel, url, note });
+  const f = (() => {
+    try { return add(ROOT, { work, kind, channel, url, note }); }
+    catch (e) { failCorrupt(e); process.exit(1); }
+  })();
   console.log(`已记录：${work || '(未指定作品)'} · ${kind} · ${CH_LABEL(channel)} → ${url}`);
   console.log('台账文件：' + f);
+  console.log('下一步：`npm run sources` 重新导出 _sources.md（交付时 pack 会自动打包它）');
   process.exit(0);
 }
 
-const data = load(ROOT);
+let data;
+try { data = load(ROOT); }
+catch (e) { failCorrupt(e); process.exit(1); }
 const entries = data.entries || [];
 
 if (cmd === 'list') {
@@ -60,7 +69,8 @@ if (cmd === 'report') {
   const lines = [];
   lines.push('# 素材来源台账');
   lines.push('');
-  lines.push('生成时间：' + new Date().toLocaleString('zh-CN') + '　｜　项目根：`' + ROOT + '`');
+  // 不写绝对路径：本文件会被 pack 复制进交付包，带用户名/盘符的路径会随交付泄露（pack 另有兜底替换）
+  lines.push('生成日期：' + todayLocal() + '　｜　生成时间：' + new Date().toLocaleString('zh-CN'));
   lines.push('');
   lines.push(`共 ${entries.length} 条：官方渠道 ${official} 条，图库 safebooru ${booru} 条。`);
   lines.push('');
@@ -85,6 +95,7 @@ if (cmd === 'report') {
   lines.push('');
   fs.writeFileSync(out, lines.join('\n'), 'utf8');
   console.log('已生成 ' + out + `（${entries.length} 条：官方 ${official}，图库 ${booru}）`);
+  console.log('下一步：交付时跑 `npm run pack`（会把这份台账一并打进 _deliver/）；只想看台账内容可用 `npm run sources -- list`');
   if (booru) console.warn('⚠ 有 ' + booru + ' 条来自图库：能回溯到官方原图的，建议替换后再交付（授权链更干净）');
   if (!entries.length) console.warn('⚠ 台账是空的——取图时用 `node sources.js add ...` 记一条，公开分享时才有据可查');
   process.exit(0);

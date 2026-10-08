@@ -20,12 +20,23 @@ const CHARS_TXT = path.join(ROOT, 'fonts', 'wk_chars.txt');
 let chars = new Set();
 function add(s) { if (s) for (const c of String(s)) chars.add(c); }
 
+// 统一 JSON 读取：剥 BOM（PowerShell/记事本常见）并给出中文解析原因
+function readJson(file) {
+  let txt = fs.readFileSync(file, 'utf8');
+  const bom = txt.charCodeAt(0) === 0xFEFF;
+  if (bom) txt = txt.slice(1);
+  try { return JSON.parse(txt); }
+  catch (e) { throw new Error('JSON 解析失败（' + file + (bom ? '，文件带 BOM' : '') + '）：' + e.message); }
+}
+
 // 基础数据
 const BASE_FILE = path.join(ROOT, 'anime_base.json');
 if (!fs.existsSync(BASE_FILE)) {
   console.error('未找到 ' + BASE_FILE + ' ——请先跑 npm run base（模式 A 合成）或检查 config.json 的 root'); process.exit(1);
 }
-const base = JSON.parse(fs.readFileSync(BASE_FILE, 'utf8'));
+let base;
+try { base = readJson(BASE_FILE); }
+catch (e) { console.error('无法读取 ' + BASE_FILE + '：' + e.message); process.exit(1); }
 for (const [k, v] of Object.entries(base)) {
   add(k); add(v.title); add(v.folder);
   for (const t of v.titles || []) add(t);
@@ -40,13 +51,13 @@ const rdir = path.join(ROOT, 'anime_research');
 if (fs.existsSync(rdir)) {
   for (const f of fs.readdirSync(rdir).filter(f => f.endsWith('.json'))) {
     try {
-      const r = JSON.parse(fs.readFileSync(path.join(rdir, f), 'utf8'));
+      const r = readJson(path.join(rdir, f));
       for (const v of Object.values(r)) {
         if (typeof v === 'string') add(v);
         else if (Array.isArray(v)) v.forEach(x => typeof x === 'string' ? add(x) : add(JSON.stringify(x)));
         else if (v && typeof v === 'object') add(JSON.stringify(v));
       }
-    } catch (e) { console.error('skip bad json:', f); }
+    } catch (e) { console.error('skip bad json:', f, e.message); }
   }
 }
 
@@ -57,6 +68,7 @@ add('未核实以游戏内为准以官网为准TV OVA 剧场版特别篇本篇�
 add('0123456789·—（）()「」『』【】～.:：,、.!！?？~-～ ');
 add('abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789');
 add(CFG.title || '');   // 自定义书名的字必须进子集，否则封面/总览/封底出方块字
+add(CFG.credits || ''); // 封底"资料来源"行（build 渲染 CFG.credits || DEFAULT_CREDITS），人名用字也必须进子集
 add('完');              // 封底收尾字
 // 兜底防缺字：把 build 脚本全文（含全部界面文案与注释）并入字符集——UI 文字改版也不怕漏
 try { add(fs.readFileSync(path.join(__dirname, 'build_anime_html.js'), 'utf8')); }

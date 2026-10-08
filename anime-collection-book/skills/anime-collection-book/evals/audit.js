@@ -108,11 +108,16 @@ for (const rec of works) {
     issues.push('[A7] anime 域缺 units（模式 A 必填；总览时间轴会丢列）');
   }
 
-  // 简介长度（文档要求 300-500 字）
+  // 简介长度：两档，别再让文档承诺一个代码从不检查的区间。
+  //   硬线（计入 issues，会拉高 hard）：<120 撑不起版面、>800 会挤版
+  //   软线（只做建议，符合文档里"建议 300-500 字"的措辞）——此前文档写 300-500，代码却只查 120/800，
+  //   于是 200 字、600 字都能"审计全绿"，文档承诺的检查其实不存在。
   const syn = String(r.synopsis || '');
   if (hasText(r.synopsis)) {
-    if (syn.length < 120) issues.push('[A8] synopsis 只有 ' + syn.length + ' 字（规范 300-500 字，太短撑不起版面）');
+    if (syn.length < 120) issues.push('[A8] synopsis 只有 ' + syn.length + ' 字（硬下限 120 字，太短撑不起版面）');
     else if (syn.length > 800) issues.push('[A8] synopsis ' + syn.length + ' 字（超过 800 字会挤版）');
+    else if (syn.length < 300) missingSug.push('synopsis 偏短（' + syn.length + ' 字，建议 300-500 字）');
+    else if (syn.length > 500) missingSug.push('synopsis 偏长（' + syn.length + ' 字，建议 300-500 字）');
   }
 
   // production 结构化解析（格式不符会降级为整段文本，不是错，但值得知道）
@@ -152,11 +157,22 @@ if (needFix.length) {
   console.log('\n建议先补这几部：');
   needFix.slice(0, 10).forEach((s) => console.log('  · ' + s));
 }
-console.log('\n提示：本审计是建议性的，不阻断交付；`npm run check` 才是产物断言（13 条）。');
+console.log('\n提示：本审计是建议性的，不阻断交付；`npm run check` 才是产物断言（17 条）。');
 console.log(hard ? '硬问题（缺调研稿/坏 JSON/缺必填/剧透表不对齐）会让成品出现肉眼可见的空缺 —— 建议补完再渲染。' : '没有硬问题，可以直接交付。');
 
+// ---- 退出码：默认 0 ----
+// 它是"建议性、不阻断交付"的一步，却曾经在硬问题时返回 1：agent 用 `&&` 串步骤时会被它掐断，
+// 后面的目检签署与 pack 根本不执行（CI 里也是靠 `npm run audit || true` 绕过）。
+// 想让 CI/脚本按硬问题 gate，就显式加 --strict。
+const STRICT = process.argv.includes('--strict');
+const exitCode = (STRICT && hard) ? 1 : 0;
+if (hard) {
+  console.log(STRICT
+    ? '（--strict：有硬问题 → 退出码 1）'
+    : '（默认不阻断交付，退出码 0；要让 CI 按硬问题失败请加 --strict）');
+}
+
 // ---- 收据：整本一份 + 每部一份（后者是"哪几部做完了"的可续跑清单）----
-const exitCode = hard ? 1 : 0;
 const receipt = {
   version: 1,
   type: 'audit',
@@ -164,6 +180,7 @@ const receipt = {
   root: ROOT,
   domain: DOMAIN,
   exitCode,
+  strict: STRICT,
   counts: { works: works.length, complete: works.length - hard - soft, soft, hard },
   needFix,
   works: workReceipts,

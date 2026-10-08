@@ -1,8 +1,10 @@
-// 环境自检：一次把"跑不起来"的原因说清（node / python / 字体 / 浏览器 / 网络 / 配置）
+// 环境自检：一次把"跑不起来"的原因说清（node / python / 字体 / 浏览器 / 网络 / 配置 / 重复安装）
 // 用法: node doctor.js [--net]        --net 才做联网探测（默认跳过，离线也能跑）
 // 只读检查 + 一次写权限试探；不改任何产物
 const fs = require('fs');
+const os = require('os');
 const path = require('path');
+const crypto = require('crypto');
 const { execFileSync } = require('child_process');
 
 const NET = process.argv.includes('--net');
@@ -54,6 +56,79 @@ if (!ROOT) {
   else if (fs.existsSync(names)) meh('有 names.txt 但还没有 anime_base.json', '跑 `npm run base`（问卷式合成）');
   else meh('项目根既没有 names.txt 也没有 anime_base.json', '模式 A：写 names.txt（一行一部）；模式 B：自备扫描脚本生成 anime_base.json');
   if (fs.existsSync(path.join(ROOT, 'anime_build', cfgmod.BOOK + '.pdf'))) ok('已有成品 PDF（可反复重跑）');
+}
+
+// ---- 重复安装 ----
+// 同一个 skill 同时出现在两个技能目录（如 ~/.dsh/skills 与 ~/.agents/skills）时会出现两份、
+// 互相抢触发，而且可能一直跑到旧版本那份——README 警告过，但没有机制能发现。这里补上。
+head('重复安装（同名 skill 出现在多个技能目录）');
+{
+  const SKILL_ROOT = path.resolve(__dirname, '..');   // 本 skill 的信封目录
+  const MY_NAME = path.basename(SKILL_ROOT);
+  const home = os.homedir();
+  const dirs = [...new Set([
+    path.join(home, '.dsh', 'skills'),
+    path.join(home, '.agents', 'skills'),
+    path.join(home, '.claude', 'skills'),
+    path.join(home, '.zcode', 'skills'),
+    path.join(process.cwd(), '.agents', 'skills'),
+    path.join(process.cwd(), '.claude', 'skills'),
+  ].map((d) => path.resolve(d)))].filter((d) => fs.existsSync(d));
+
+  const readMeta = (dir) => {
+    let txt = '';
+    try { txt = fs.readFileSync(path.join(dir, 'SKILL.md'), 'utf8'); } catch (e) { return null; }
+    const v = (txt.match(/^\s*version:\s*"?([^"\r\n]+?)"?\s*$/m) || [])[1];
+    let hash = '';
+    try { hash = crypto.createHash('sha256').update(txt).digest('hex').slice(0, 8); } catch (e) { /* 读不到就没有哈希 */ }
+    return { version: v ? v.trim() : '无版本号', hash };
+  };
+
+  // 扫出所有技能目录里"带 SKILL.md 的子目录"，按名字归组
+  const found = new Map();
+  for (const d of dirs) {
+    let entries = [];
+    try { entries = fs.readdirSync(d, { withFileTypes: true }); } catch (e) { continue; }
+    for (const e of entries) {
+      const full = path.join(d, e.name);
+      let isDir = e.isDirectory();
+      if (e.isSymbolicLink()) { try { isDir = fs.statSync(full).isDirectory(); } catch (err) { isDir = false; } }  // 技能常用软链安装
+      if (!isDir || !fs.existsSync(path.join(full, 'SKILL.md'))) continue;
+      if (!found.has(e.name)) found.set(e.name, []);
+      found.get(e.name).push(full);
+    }
+  }
+
+  const mine = found.get(MY_NAME) || [];
+  if (mine.length > 1) {
+    const rows = mine.map((p) => { const m = readMeta(p); return p + (m ? '（v' + m.version + ' · SKILL.md ' + m.hash + '）' : '（读不到 SKILL.md）'); });
+    no('本 skill 装了 ' + mine.length + ' 份，会互相抢触发，还可能一直跑到旧版本：\n      · ' + rows.join('\n      · '),
+      '只留一份（留版本号/哈希最新的，其余整个目录删掉）；别用"插件安装"和"手动拷目录"各装一遍');
+  } else if (mine.length === 1) {
+    const m = readMeta(mine[0]);
+    ok('本 skill 只装了一份：' + mine[0] + (m ? '（v' + m.version + '）' : ''));
+  } else {
+    meh('常见技能目录里没找到本 skill（可能正从仓库 / 工作副本直接运行）',
+      '正式使用时装到 ' + path.join(home, '.dsh', 'skills') + ' 或 ' + path.join(home, '.agents', 'skills') + '，二选一');
+  }
+
+  // 别的 skill：多份共存很常见（多工具镜像安装），真正要报的是"多份之间版本/内容不一致"——
+  // 那意味着同一句话在不同工具里会触发到不同版本的 skill。
+  const others = [...found.entries()].filter(([name, list]) => name !== MY_NAME && list.length > 1);
+  const drifted = [];
+  for (const [name, list] of others) {
+    const metas = list.map((p) => readMeta(p)).filter(Boolean);
+    const distinct = new Set(metas.map((m) => m.version + '/' + m.hash));
+    if (distinct.size > 1) drifted.push(name + '×' + list.length + '（' + [...new Set(metas.map((m) => 'v' + m.version))].join(' vs ') + '）');
+  }
+  if (drifted.length) {
+    meh('有 ' + drifted.length + ' 个 skill 装了多份且版本不一致：' + drifted.slice(0, 6).join('、')
+      + (drifted.length > 6 ? ' 等 ' + drifted.length + ' 个' : ''),
+      '同一句话在不同工具里会触发到不同版本；建议各自只留一份（本项不阻塞）');
+  } else if (others.length) {
+    ok(others.length + ' 个 skill 也装有多份，但版本一致（多工具镜像安装，无需处理）');
+  }
+  if (!dirs.length) meh('常见技能目录都不存在', '确认你的 agent 从哪个目录读 skill');
 }
 
 // ---- Node ----
@@ -110,13 +185,25 @@ try {
 } catch (e) {
   meh('未安装 playwright', '在 scripts/ 目录执行 npm i');
 }
-const EDGE = [
+// 系统浏览器兜底候选：Windows / macOS / Linux 都要有——
+// 此前只有两个 Windows 路径 + 一个 macOS 路径，却在 SKILL.md 声称"macOS/Linux 核心流程可用"，
+// Linux 上常见的 chromium/chrome 会被判成"既没有 Chromium 也没有系统浏览器"。
+const BROWSER_CANDIDATES = [
   'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe',
   'C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe',
+  'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+  'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
   '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge',
-].find((f) => fs.existsSync(f));
-if (EDGE) ok('系统 Edge 可用（playwright 装不上时脚本会自动回退到它）');
-else if (!pwOk) no('既没有 Playwright Chromium 也没有系统 Edge', 'npx playwright install chromium，或装 Edge/Chrome');
+  '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+  '/usr/bin/chromium',
+  '/usr/bin/chromium-browser',
+  '/usr/bin/google-chrome',
+  '/usr/bin/google-chrome-stable',
+  '/snap/bin/chromium',
+];
+const EDGE = BROWSER_CANDIDATES.find((f) => fs.existsSync(f));
+if (EDGE) ok('系统浏览器可用（playwright 装不上时脚本会自动回退到它）：' + EDGE);
+else if (!pwOk) no('既没有 Playwright Chromium 也没有可用的系统浏览器', 'npx playwright install chromium，或装 Edge/Chrome/Chromium');
 
 // ---- 取数工具 ----
 head('取数工具');

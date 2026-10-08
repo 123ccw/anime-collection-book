@@ -1,6 +1,8 @@
 // 产物断言器（验收流程第 ④ 步）：在 npm run pipeline 之后执行
 // 用法: npm run check（或 node evals/check.js）
-// 纯 fs 实现，无第三方依赖、不启动子进程
+// 纯 fs 实现，无第三方依赖、不启动子进程 —— 连 npm i 之前也能跑。
+// 代价是"PDF 里到底有没有字、书签在不在"这类只有解析 PDF 才知道的事查不了：
+// 那部分交给 evals/pdfprobe.js（用 pdfjs），它写 _pdfprobe.json 收据，本脚本负责读并判定（[C15]/[C16]）。
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
@@ -105,10 +107,11 @@ let pdfSize = 0;
 try { pdfSize = fs.statSync(pdfPath).size; } catch (e) { /* 不存在 */ }
 t('[C9] PDF 已生成且大于 50KB', pdfSize > 51200, pdfSize ? pdfSize + 'B' : '不存在');
 
-// ⑤ 页码映射全命中
+// ⑤ 页码映射全命中（n > 0 是防"空集恒真"：0 部作品时 0 === 0 会假绿）
 try {
   const map = JSON.parse(fs.readFileSync(P('anime_build', '_pagemap.json'), 'utf8'));
-  t('[C10] 页码映射条目数 = 收录部数', Object.keys(map).length === n, Object.keys(map).length + ' / ' + n);
+  t('[C10] 页码映射条目数 = 收录部数', n > 0 && Object.keys(map).length === n,
+    n > 0 ? Object.keys(map).length + ' / ' + n : '一部都没收录（见 [C2]），页码映射无从校验');
 } catch (e) { t('[C10] 页码映射存在且可解析', false, e.message); }
 
 // ⑥ 目录页码 = 最终书签页码（两轮渲染稳定性的机器断言；目录印的是第 1 轮的页码，_pagemap.json 是第 2 轮实测）
@@ -139,6 +142,54 @@ try {
 
 // ⑧ 封面封底页已生成
 t('[C13] 封面封底页已生成', html.includes('cover-pg') && html.includes('back-pg'));
+
+// ⑨ PDF 层：体积上限（字体子集化是本 skill 的核心卖点；它一失控，PDF 会无声膨胀）
+const MAX_PDF_MB = Number(process.env.ANIME_BOOK_MAX_PDF_MB) > 0 ? Number(process.env.ANIME_BOOK_MAX_PDF_MB) : 25;
+t('[C14] PDF 体积在阈值内（' + MAX_PDF_MB + 'MB，字体子集未失控）',
+  pdfSize > 0 && pdfSize <= MAX_PDF_MB * 1024 * 1024,
+  pdfSize ? (pdfSize / 1024 / 1024).toFixed(1) + 'MB 超阈值 —— 检查字体有没有被子集化（pipeline 第一步），或用 ANIME_BOOK_MAX_PDF_MB 调整阈值'
+    : 'PDF 不存在（见 [C9]）');
+
+// ⑩ PDF 层深检：读 pdfprobe 的收据（缺了就是没跑探针——正常走 npm run check 不会缺）
+let probe = null;
+try { probe = JSON.parse(fs.readFileSync(P('anime_build', '_pdfprobe.json'), 'utf8')); } catch (e) { /* 未跑探针 */ }
+const probeHow = '缺 _pdfprobe.json —— 跑 `npm run probe`（`npm run check` 已串联，正常不会缺）';
+if (!probe) {
+  t('[C15] PDF 正文含每部作品名（防字体子集吞字）', false, probeHow);
+  t('[C16] PDF 书签含每部作品名（页码反查的输入源）', false, probeHow);
+} else if (probe.error) {
+  // 用探针写下的可读解释（errorText），别把 pdf-missing 这种内部标识符抛给用户
+  const why = '探针未能运行：' + (probe.errorText || probe.error);
+  t('[C15] PDF 正文含每部作品名（防字体子集吞字）', false, why);
+  t('[C16] PDF 书签含每部作品名（页码反查的输入源）', false, why);
+} else {
+  // 缺字在 PDF 里的表现不是 U+FFFD 而是"整段消失"——只能在提取出的正文里找名字（[C5] 查的是 HTML，查不到这个）
+  // works > 0 是防"空通过"：作品名解析不出来时，两个 filter 都会得到空数组，断言会假绿
+  const missText = probe.missingInText || [];
+  t('[C15] PDF 正文含每部作品名（防字体子集吞字）',
+    probe.works > 0 && missText.length === 0 && probe.bookTitleInText !== false,
+    (probe.works > 0 ? '' : '探针没解析出任何作品名（anime_base.json / anime_research 有问题）')
+      + (missText.length ? '正文里找不到：' + missText.join('、') : (probe.works > 0 ? '书名不在正文里' : ''))
+      + ' —— 文案改过就重跑 `npm run pipeline`（会重做字体子集）');
+  // 书签是 _pagemap 的唯一输入：它没了，目录页码必然停在占位符
+  const missOutline = probe.missingInOutline || [];
+  t('[C16] PDF 书签含每部作品名（页码反查的输入源）',
+    probe.works > 0 && missOutline.length === 0,
+    (probe.works > 0 ? '' : '探针没解析出任何作品名；')
+      + '书签里找不到：' + missOutline.join('、') + '（书签 = 目录页码的来源，丢了目录页码会留占位符）');
+}
+
+// ⑪ 书签重名：页码反查以标题为键，重名必然取到错误那一页。
+// 实测场景：书名与某部作品名相同（单部册最常见）→ 总览页标题也生成书签 → 该部目录页码印成总览页页码，
+// 而 [C10]/[C11]/[C12] 全绿（错得自洽）。只统计作品名/书名这类"当键用"的标题，避免小节重名误报。
+const dupTitles = (probe && !probe.error && probe.duplicateOutlineTitles) || [];
+t('[C17] 书签标题无重复（重复会让页码反查取错页）',
+  !!probe && !probe.error && probe.works > 0 && dupTitles.length === 0,
+  !probe ? probeHow
+    : (probe.error ? '探针未能运行：' + (probe.errorText || probe.error)
+      : (probe.works > 0
+        ? '重复书签：' + dupTitles.join('、') + ' —— 典型原因：书名与某部作品名相同（总览页标题也进了书签）；改书名，或让总览页标题不生成书签'
+        : '探针没解析出任何作品名（anime_base.json / anime_research 有问题）')));
 
 console.log('\n结果：' + pass + ' 通过，' + fail + ' 失败' + (fail ? '（回到 SKILL.md 的坑位清单排查）' : ''));
 writeReceipt(fail ? 1 : 0);
