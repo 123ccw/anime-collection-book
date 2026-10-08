@@ -35,7 +35,9 @@ npm run cards      # 导出收藏卡 PNG + 高清整页图（anime_build/_cards 
 npm run sources    # 出素材来源台账（anime_build/_sources.md）——公开分享时的自证材料
 npm run epub       # 导出 EPUB 3 可重排版（anime_build/<书名>.epub；手机/阅读器用；需 Python 3，字体子集另需 fonttools）
 npm run userdata   # 把研究稿里的"已收"迁进 userdata.json（只补缺失、幂等；`-- --dry-run` 只看不写）
-npm run test:userdata  # 用户数据层回归测试（读写 / 原子写 / 损坏保护 / 迁移幂等 / 构建只读）
+npm run test:userdata  # 用户数据层回归测试（读写 / 原子写 / 损坏保护 / 迁移幂等 / 写入入口 / 构建只读）
+npm run userdata:set -- --folder "作品名" --score 8.5 --comment "短评"   # 写我的评分/短评（`-- --dry-run` 只看不写）
+npm run userdata:list  # 列出已经写进 userdata 的作品与评分/已收状态
 npm run pack       # 一键交付：把成品与说明归拢到 <项目根>/_deliver/
 npm run candidates -- <safebooru_tag>   # 候选图对比（兜底渠道；--pick <编号> 取图入库，见 image-selection.md）
 npm run lint       # skill 信封校验（frontmatter / 引用完整性 / 断言条数与坑位数是否与代码一致）

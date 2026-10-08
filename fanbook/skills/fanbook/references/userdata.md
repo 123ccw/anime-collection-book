@@ -53,7 +53,7 @@
 
 ## 硬规则
 
-1. **构建只读**：构建 / 渲染 / 验收 / 打包全程只读 userdata；唯一写入者是 `_userdata.js` 的调用方（迁移器、将来的导入器）。
+1. **构建只读**：构建 / 渲染 / 验收 / 打包全程只读 userdata；唯一写入者是 `_userdata.js` 的调用方 —— `npm run userdata`（迁移）与 `npm run userdata:set`（手工写入），导入器是下一步。
 2. **缺失 ≠ 错误**：文件不存在时构建静默回退研究稿（老项目零改动可跑）。
 3. **损坏 ≠ 空**：解析失败时读侧告警并按现有机制非零退出，**绝不**当空数据继续、更不会被覆盖；写侧直接抛出。
 4. **原子写**：tmp + rename（同 `anime_pagemap.js`）。
@@ -69,6 +69,28 @@
 3. 章末的**我的短评**卡。
 
 字段没写就不渲染，不会出现空壳标题。`score` 写数字（如 `8.5`）会按 10 分制兜底。
+
+## 怎么写入（手工，P0 已提供）
+
+评分 / 短评这类"只有你自己有"的内容用命令写，**别手改 JSON**（写坏了会让构建非零退出）：
+
+```bash
+npm run userdata:list                                    # 看已经写了哪些
+npm run userdata:set -- --folder "政宗君的复仇" --score 8.5 --source manual
+npm run userdata:set -- --folder "政宗君的复仇" --comment "重看才发现前两集埋得够深"
+npm run userdata:set -- --folder "政宗君的复仇" --collected true --first-watched 2022-04-10
+npm run userdata:set -- --folder "政宗君的复仇" --clear score,comment     # 删掉某几个字段
+```
+
+（`npm run userdata:set -- …` 里的 `--` 是 npm 的传参分隔符，别省。）
+
+- 评分默认 10 分制；换分制显式给 `--scale`。**超出分制会被拒绝**，不静默截断
+- `--score` 可配 `--source` 标出处；手工写入会记 `provenance.source = "manual"`
+- 默认真写；加 `--dry-run` 只看会改什么、不落盘
+- 按 `folder` 定位：查不到会**新建**条目；已存在的条目**只改你传的字段**，其余原样（别的作品完全不受影响）
+- `--list` / `--collected` / `--status` / `--first-watched` / `--finished-at` / `--rewatch` / `--tags` 都可用；`--help` 看全集
+
+写完重跑 `npm run pipeline`（PDF）或 `npm run epub`（EPUB）就能看到。
 
 ## 迁移（P0 已提供）
 
@@ -88,7 +110,7 @@ npm run userdata -- --force   # 没有新增也重写一次
 npm run test:userdata
 ```
 
-覆盖：缺文件正常、写入回读、原子写不留 tmp、损坏文件两种行为、迁移正确性 / 幂等 / 不覆盖，以及**跑一次 build 后 userdata 字节不变**（构建失败也必须不变）。
+13 条：缺文件正常、写入回读、原子写不留 tmp、损坏文件两种行为、迁移正确性 / 幂等 / 不覆盖、**手工写入入口**（只改传入字段 / 幂等 / 可清除）、CLI 的 `--dry-run` 不落盘与越界评分被拒，以及**跑一次 build 后 userdata 字节不变**（构建失败也必须不变）。
 
 整册级别的不变量：连续两次 `npm run pipeline` 后 `userdata.json` 的 hash 不变。
 

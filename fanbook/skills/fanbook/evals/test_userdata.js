@@ -113,6 +113,49 @@ t('构建只读：跑一次 build_anime_html.js，userdata 字节不变', functi
   console.log('        （build 退出码 ' + run.status + '；无论成败都不得改写用户数据）');
 });
 
+t('写入入口 setFields：新建条目、只改传入字段、不动别的条目', function () {
+  const d = ud.empty();
+  d.works['w_keep'] = { work_id: 'w_keep', folder: '保留作', score: { value: 9, scale: 10 }, comment: '别动我' };
+  const r = ud.setFields(d, '新作品', { score: { value: 8, scale: 10, source: 'manual' }, comment: '  新短评  ' }, {});
+  assert.strictEqual(r.created, true);
+  assert.deepStrictEqual(r.changed.slice().sort(), ['comment', 'score']);
+  assert.strictEqual(Object.keys(r.data.works).length, 2);
+  assert.strictEqual(r.data.works['w_keep'].comment, '别动我');
+});
+
+t('写入入口幂等：同样输入第二次无变化', function () {
+  const a = ud.setFields(ud.empty(), '甲作', { score: { value: 7, scale: 10 } }, {});
+  const b = ud.setFields(a.data, '甲作', { score: { value: 7, scale: 10 } }, {});
+  assert.strictEqual(b.created, false);
+  assert.deepStrictEqual(b.changed, []);
+});
+
+t('写入入口可清除字段', function () {
+  const a = ud.setFields(ud.empty(), '乙作', { score: { value: 7, scale: 10 }, comment: 'x' }, {});
+  const b = ud.setFields(a.data, '乙作', {}, { clear: ['comment'] });
+  assert.deepStrictEqual(b.changed, ['-comment']);
+  assert.strictEqual('comment' in b.data.works[b.workId], false);
+});
+
+t('CLI：--dry-run 不写文件；真写后 --list 能读出来', function () {
+  const before = hash(FILE);
+  const dry = spawnSync(process.execPath, ['set_userdata.js', '--folder', '甲', '--score', '7', '--dry-run'], { cwd: SCRIPT_DIR, env: process.env, encoding: 'utf8' });
+  assert.strictEqual(dry.status, 0, dry.stderr);
+  assert.ok(/dry-run/.test(dry.stdout), dry.stdout);
+  assert.strictEqual(hash(FILE), before, 'dry-run 改写了 userdata.json');
+  const set = spawnSync(process.execPath, ['set_userdata.js', '--folder', '甲', '--score', '7', '--source', 'manual', '--comment', 'CLI写入的短评'], { cwd: SCRIPT_DIR, env: process.env, encoding: 'utf8' });
+  assert.strictEqual(set.status, 0, set.stderr);
+  const list = spawnSync(process.execPath, ['set_userdata.js', '--list'], { cwd: SCRIPT_DIR, env: process.env, encoding: 'utf8' });
+  assert.ok(list.stdout.indexOf('CLI写入的短评') >= 0, list.stdout);
+});
+
+t('CLI：越界评分必须非零退出且不写文件', function () {
+  const before = hash(FILE);
+  const bad = spawnSync(process.execPath, ['set_userdata.js', '--folder', '甲', '--score', '99'], { cwd: SCRIPT_DIR, env: process.env, encoding: 'utf8' });
+  assert.notStrictEqual(bad.status, 0);
+  assert.strictEqual(hash(FILE), before);
+});
+
 console.log('');
 console.log('结果：' + pass + ' 通过 / ' + fail + ' 失败');
 fs.rmSync(TMP, { recursive: true, force: true });   // TMP 由 mkdtemp 创建，仅本次测试使用

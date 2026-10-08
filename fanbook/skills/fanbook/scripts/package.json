@@ -1,6 +1,6 @@
 {
   "name": "fanbook-scripts",
-  "version": "1.8.0",
+  "version": "1.9.0",
   "private": true,
   "description": "番剧收藏册 PDF 管线脚本（先 npm i；再改 config.json 的 root；然后 npm run pipeline）",
   "scripts": {
@@ -21,6 +21,8 @@
     "sources": "node sources.js",
     "epub": "node epub.js",
     "userdata": "node migrate_userdata.js",
+    "userdata:set": "node set_userdata.js",
+    "userdata:list": "node set_userdata.js --list",
     "test:userdata": "node ../evals/test_userdata.js",
     "pack": "node pack.js",
     "version:check": "node sync_version.js --check",

@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.9.0
+
+**个人数据有了受支持的写入入口。** 1.8.0 把 userdata 层建了起来，但"我的评分 / 短评"只能手改 JSON —— 手改最容易写坏，而 userdata 一旦坏掉构建会直接非零退出。这一版补上写入通道，并把它写进 SKILL.md 的流程。
+
+- 新增 `scripts/set_userdata.js`（`npm run userdata:set` / `npm run userdata:list`）：按 `folder` 定位条目（**查不到就新建**），只改动传入的字段，其余原样，别的作品完全不受影响。支持 `--score` / `--scale` / `--source` / `--comment` / `--status` / `--first-watched` / `--finished-at` / `--collected` / `--rewatch` / `--tags` / `--clear` / `--dry-run` / `--list`
+- `_userdata.js` 新增纯函数 `setFields()`：幂等、可清字段、从不触碰其他条目；落盘仍走 `save()` 的原子替换（tmp + rename）
+- 校验前置：评分超出 `--scale` **直接拒绝**（不静默截断）；日期必须 `YYYY-MM-DD` 或 `null`；损坏的 userdata 拒绝写入，并给出"改名后从研究稿重建"的恢复步骤
+- 手工写入会记 `provenance.source = "manual"`，与将来的导入器（`mal-xml` 等）区分开
+- `evals/test_userdata.js` 8 → **13 条**：新增写入入口的新建 / 幂等 / 清除、CLI `--dry-run` 不落盘、越界评分被拒
+- 文档：`SKILL.md` 新增「我的评分与短评（可选，与调研无关）」；`references/userdata.md` 新增「怎么写入」；`references/build.md` 命令表补两条
+- 本机验证：`test:userdata` 13/13；真实项目 `npm run userdata` 迁移 1 部作品 / 4 条系列条目、`--list` 可读、`--dry-run` 不改文件、`--score 99` 被拒；`npm run lint` 0 错 0 提醒；`sync_version --check` 6 处一致
 ## 1.8.0
 
 **个人数据层（P0）**：给收藏册加一层"只有用户本人有"的数据——我的评分、短评、首看日、已收状态。起因是一条已经存在的丢数据路径：`franchise[].collected` 一直存在 `anime_research/<作品>.json` 里，而那是调研产物，重跑一次调研就会把用户标的"已收"覆盖掉。
